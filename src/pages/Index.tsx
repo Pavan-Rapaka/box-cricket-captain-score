@@ -1,14 +1,30 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import MatchSetup, { MatchConfig } from '@/components/MatchSetup';
+import LiveScoring from '@/components/LiveScoring';
 
 const Index = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
-  );
+  const [currentView, setCurrentView] = useState<'setup' | 'scoring'>('setup');
+  const [matchConfig, setMatchConfig] = useState<MatchConfig | null>(null);
+
+  const handleStartMatch = (config: MatchConfig) => {
+    setMatchConfig(config);
+    setCurrentView('scoring');
+  };
+
+  const handleEndMatch = () => {
+    setCurrentView('setup');
+    setMatchConfig(null);
+  };
+
+  if (currentView === 'setup') {
+    return <MatchSetup onStartMatch={handleStartMatch} />;
+  }
+
+  if (currentView === 'scoring' && matchConfig) {
+    return <LiveScoring matchConfig={matchConfig} onEndMatch={handleEndMatch} />;
+  }
+
+  return null;
 };
 
 export default Index;

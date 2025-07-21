@@ -61,6 +61,13 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				cricket: {
+					'field': 'hsl(120 60% 25%)',
+					'boundary': 'hsl(45 90% 60%)',
+					'six': 'hsl(280 80% 60%)',
+					'wicket': 'hsl(0 75% 55%)',
+					'gold': 'hsl(45 85% 50%)'
 				}
 			},
 			borderRadius: {
@@ -88,7 +95,10 @@ export default {
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'celebration': 'bounce 0.5s ease-in-out',
+				'score-update': 'pulse 0.3s ease-in-out',
+				'wicket-fall': 'shake 0.5s ease-in-out'
 			}
 		}
 	},
