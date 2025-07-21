@@ -13,6 +13,7 @@ import {
   Zap,
   AlertTriangle
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MatchConfig } from './MatchSetup';
 
 interface Player {
@@ -23,6 +24,7 @@ interface Player {
   sixes: number;
   isOut: boolean;
   isOnStrike: boolean;
+  dismissalType?: string;
 }
 
 interface Bowler {
@@ -40,8 +42,10 @@ interface LiveScoringProps {
 
 const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [currentInnings, setCurrentInnings] = useState(1);
-  const [battingTeam, setBattingTeam] = useState(matchConfig.team1Name);
-  const [bowlingTeam, setBowlingTeam] = useState(matchConfig.team2Name);
+  const [battingTeam, setBattingTeam] = useState(matchConfig.firstBatting);
+  const [bowlingTeam, setBowlingTeam] = useState(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name);
+  const [showWicketDialog, setShowWicketDialog] = useState(false);
+  const [nextPlayerIndex, setNextPlayerIndex] = useState(2);
   
   const [team1Score, setTeam1Score] = useState(0);
   const [team1Wickets, setTeam1Wickets] = useState(0);
@@ -53,8 +57,11 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [team2Overs, setTeam2Overs] = useState(0);
   const [team2Balls, setTeam2Balls] = useState(0);
 
+  const getBattingPlayers = () => matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players;
+  const getBowlingPlayers = () => matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Players : matchConfig.team1Players;
+
   const [striker, setStriker] = useState<Player>({
-    name: matchConfig.team1Players[0] || 'Player 1',
+    name: getBattingPlayers()[0] || 'Player 1',
     runs: 0,
     balls: 0,
     fours: 0,
@@ -64,7 +71,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   });
 
   const [nonStriker, setNonStriker] = useState<Player>({
-    name: matchConfig.team1Players[1] || 'Player 2',
+    name: getBattingPlayers()[1] || 'Player 2',
     runs: 0,
     balls: 0,
     fours: 0,
@@ -74,7 +81,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   });
 
   const [currentBowler, setCurrentBowler] = useState<Bowler>({
-    name: currentInnings === 1 ? matchConfig.team2Players[0] || 'Bowler 1' : matchConfig.team1Players[0] || 'Bowler 1',
+    name: getBowlingPlayers()[0] || 'Bowler 1',
     overs: 0,
     balls: 0,
     runs: 0,
@@ -151,9 +158,41 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
       setStriker(nonStriker);
       setNonStriker(temp);
     }
+
+    // Check if innings should end (overs completed)
+    if (newOvers >= matchConfig.overs) {
+      if (currentInnings === 1) {
+        // Switch innings
+        setCurrentInnings(2);
+        setBattingTeam(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name);
+        setBowlingTeam(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Name : matchConfig.team2Name);
+        setNextPlayerIndex(2);
+        const newBattingPlayers = matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Players : matchConfig.team1Players;
+        const newBowlingPlayers = matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players;
+        setStriker({
+          name: newBattingPlayers[0] || 'Player 1',
+          runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: true
+        });
+        setNonStriker({
+          name: newBattingPlayers[1] || 'Player 2',
+          runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: false
+        });
+        setCurrentBowler({
+          name: newBowlingPlayers[0] || 'Bowler 1',
+          overs: 0, balls: 0, runs: 0, wickets: 0
+        });
+      } else {
+        // Match finished
+        onEndMatch();
+      }
+    }
   };
 
   const handleWicket = () => {
+    setShowWicketDialog(true);
+  };
+
+  const processWicket = (dismissalType: string) => {
     const newWickets = getCurrentTeamWickets() + 1;
     
     if (currentInnings === 1) {
@@ -166,26 +205,51 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     setRecentBalls(prev => ['W', ...prev.slice(0, 5)]);
 
     // Mark striker as out
-    setStriker(prev => ({ ...prev, isOut: true }));
+    setStriker(prev => ({ ...prev, isOut: true, dismissalType }));
+
+    // Get next player
+    const currentBattingPlayers = currentInnings === 1 
+      ? (matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players)
+      : (matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Players : matchConfig.team1Players);
+    
+    const nextPlayer = currentBattingPlayers[nextPlayerIndex];
+    
+    if (nextPlayer && nextPlayerIndex < currentBattingPlayers.length && newWickets < matchConfig.wickets) {
+      // Replace the out player with next player
+      setStriker({
+        name: nextPlayer,
+        runs: 0,
+        balls: 0,
+        fours: 0,
+        sixes: 0,
+        isOut: false,
+        isOnStrike: true
+      });
+      setNextPlayerIndex(prev => prev + 1);
+    }
+    
+    setShowWicketDialog(false);
     
     // Check if innings should end
     if (newWickets >= matchConfig.wickets || getCurrentTeamOvers() >= matchConfig.overs) {
       if (currentInnings === 1) {
         // Switch innings
         setCurrentInnings(2);
-        setBattingTeam(matchConfig.team2Name);
-        setBowlingTeam(matchConfig.team1Name);
-        // Reset players for second innings
+        setBattingTeam(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name);
+        setBowlingTeam(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Name : matchConfig.team2Name);
+        setNextPlayerIndex(2);
+        const newBattingPlayers = matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Players : matchConfig.team1Players;
+        const newBowlingPlayers = matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players;
         setStriker({
-          name: matchConfig.team2Players[0] || 'Player 1',
+          name: newBattingPlayers[0] || 'Player 1',
           runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: true
         });
         setNonStriker({
-          name: matchConfig.team2Players[1] || 'Player 2',
+          name: newBattingPlayers[1] || 'Player 2',
           runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: false
         });
         setCurrentBowler({
-          name: matchConfig.team1Players[0] || 'Bowler 1',
+          name: newBowlingPlayers[0] || 'Bowler 1',
           overs: 0, balls: 0, runs: 0, wickets: 0
         });
       } else {
@@ -427,6 +491,30 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
             End Match
           </Button>
         </div>
+
+        {/* Wicket Dialog */}
+        <Dialog open={showWicketDialog} onOpenChange={setShowWicketDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>How was {striker.name} dismissed?</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-3 p-4">
+              {[
+                'Bowled', 'Caught', 'LBW', 'Run Out',
+                'Stumped', 'Hit Wicket', 'Caught & Bowled', 'Retired'
+              ].map((type) => (
+                <Button
+                  key={type}
+                  variant="outline"
+                  onClick={() => processWicket(type)}
+                  className="h-12"
+                >
+                  {type}
+                </Button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -17,6 +17,8 @@ export interface MatchConfig {
   team2Players: string[];
   team1Captain: string;
   team2Captain: string;
+  tossWinner: string;
+  firstBatting: string;
 }
 
 interface MatchSetupProps {
@@ -33,7 +35,9 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
     team1Players: [''],
     team2Players: [''],
     team1Captain: '',
-    team2Captain: ''
+    team2Captain: '',
+    tossWinner: '',
+    firstBatting: ''
   });
 
   const addPlayer = (team: 'team1' | 'team2') => {
@@ -68,7 +72,9 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
            config.team1Players.filter(p => p.trim()).length >= 2 &&
            config.team2Players.filter(p => p.trim()).length >= 2 &&
            config.team1Captain &&
-           config.team2Captain;
+           config.team2Captain &&
+           config.tossWinner &&
+           config.firstBatting;
   };
 
   return (
@@ -231,6 +237,57 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Toss Setup */}
+        <Card className="my-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5" />
+              Toss & Batting Order
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="tossWinner">Toss Winner</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Button
+                  variant={config.tossWinner === config.team1Name ? "default" : "outline"}
+                  onClick={() => setConfig(prev => ({ ...prev, tossWinner: config.team1Name }))}
+                  disabled={!config.team1Name}
+                >
+                  {config.team1Name || 'Team 1'}
+                </Button>
+                <Button
+                  variant={config.tossWinner === config.team2Name ? "default" : "outline"}
+                  onClick={() => setConfig(prev => ({ ...prev, tossWinner: config.team2Name }))}
+                  disabled={!config.team2Name}
+                >
+                  {config.team2Name || 'Team 2'}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="firstBatting">Choose to Bat/Bowl First</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Button
+                  variant={config.firstBatting === config.team1Name ? "default" : "outline"}
+                  onClick={() => setConfig(prev => ({ ...prev, firstBatting: config.team1Name }))}
+                  disabled={!config.team1Name}
+                >
+                  {config.team1Name || 'Team 1'} Bat First
+                </Button>
+                <Button
+                  variant={config.firstBatting === config.team2Name ? "default" : "outline"}
+                  onClick={() => setConfig(prev => ({ ...prev, firstBatting: config.team2Name }))}
+                  disabled={!config.team2Name}
+                >
+                  {config.team2Name || 'Team 2'} Bat First
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Separator className="my-6" />
 
