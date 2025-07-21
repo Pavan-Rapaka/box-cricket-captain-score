@@ -1,19 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { 
-  Trophy, 
-  Target, 
-  Clock, 
-  RotateCcw, 
-  Users, 
-  TrendingUp,
-  Zap,
-  AlertTriangle
-} from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap } from 'lucide-react';
 import { MatchConfig } from './MatchSetup';
 
 interface Player {
@@ -24,15 +14,6 @@ interface Player {
   sixes: number;
   isOut: boolean;
   isOnStrike: boolean;
-  dismissalType?: string;
-}
-
-interface Bowler {
-  name: string;
-  overs: number;
-  balls: number;
-  runs: number;
-  wickets: number;
 }
 
 interface LiveScoringProps {
@@ -43,25 +24,19 @@ interface LiveScoringProps {
 const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [currentInnings, setCurrentInnings] = useState(1);
   const [battingTeam, setBattingTeam] = useState(matchConfig.firstBatting);
-  const [bowlingTeam, setBowlingTeam] = useState(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name);
   const [showWicketDialog, setShowWicketDialog] = useState(false);
-  const [nextPlayerIndex, setNextPlayerIndex] = useState(2);
   
-  const [team1Score, setTeam1Score] = useState(0);
-  const [team1Wickets, setTeam1Wickets] = useState(0);
-  const [team1Overs, setTeam1Overs] = useState(0);
-  const [team1Balls, setTeam1Balls] = useState(0);
-  
-  const [team2Score, setTeam2Score] = useState(0);
-  const [team2Wickets, setTeam2Wickets] = useState(0);
-  const [team2Overs, setTeam2Overs] = useState(0);
-  const [team2Balls, setTeam2Balls] = useState(0);
+  // Score state
+  const [score, setScore] = useState(0);
+  const [wickets, setWickets] = useState(0);
+  const [overs, setOvers] = useState(0);
+  const [balls, setBalls] = useState(0);
 
-  const getBattingPlayers = () => matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players;
-  const getBowlingPlayers = () => matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Players : matchConfig.team1Players;
-
+  // Player state
   const [striker, setStriker] = useState<Player>({
-    name: getBattingPlayers()[0] || 'Player 1',
+    name: matchConfig.firstBatting === matchConfig.team1Name 
+      ? matchConfig.team1Players[0] || 'Player 1'
+      : matchConfig.team2Players[0] || 'Player 1',
     runs: 0,
     balls: 0,
     fours: 0,
@@ -71,7 +46,9 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   });
 
   const [nonStriker, setNonStriker] = useState<Player>({
-    name: getBattingPlayers()[1] || 'Player 2',
+    name: matchConfig.firstBatting === matchConfig.team1Name 
+      ? matchConfig.team1Players[1] || 'Player 2'
+      : matchConfig.team2Players[1] || 'Player 2',
     runs: 0,
     balls: 0,
     fours: 0,
@@ -80,40 +57,20 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     isOnStrike: false
   });
 
-  const [currentBowler, setCurrentBowler] = useState<Bowler>({
-    name: getBowlingPlayers()[0] || 'Bowler 1',
-    overs: 0,
-    balls: 0,
-    runs: 0,
-    wickets: 0
-  });
+  const [nextPlayerIndex, setNextPlayerIndex] = useState(2);
 
-  const [recentBalls, setRecentBalls] = useState<string[]>([]);
-
-  const getCurrentTeamScore = () => currentInnings === 1 ? team1Score : team2Score;
-  const getCurrentTeamWickets = () => currentInnings === 1 ? team1Wickets : team2Wickets;
-  const getCurrentTeamOvers = () => currentInnings === 1 ? team1Overs : team2Overs;
-  const getCurrentTeamBalls = () => currentInnings === 1 ? team1Balls : team2Balls;
-
-  const updateScore = (runs: number, isBoundary: boolean = false, isWide: boolean = false, isNoBall: boolean = false) => {
-    const newScore = getCurrentTeamScore() + runs;
-    const newBalls = isWide || isNoBall ? getCurrentTeamBalls() : getCurrentTeamBalls() + 1;
+  const updateScore = (runs: number, isBoundary = false, isExtra = false) => {
+    const newScore = score + runs;
+    const newBalls = isExtra ? balls : balls + 1;
     const newOvers = Math.floor(newBalls / 6);
-    const remainingBalls = newBalls % 6;
+    const ballsInOver = newBalls % 6;
 
-    // Update team score
-    if (currentInnings === 1) {
-      setTeam1Score(newScore);
-      setTeam1Balls(newBalls);
-      setTeam1Overs(newOvers);
-    } else {
-      setTeam2Score(newScore);
-      setTeam2Balls(newBalls);
-      setTeam2Overs(newOvers);
-    }
+    setScore(newScore);
+    setBalls(newBalls);
+    setOvers(newOvers);
 
-    // Update striker stats (only if not a wide)
-    if (!isWide) {
+    // Update striker stats (only if not an extra)
+    if (!isExtra) {
       setStriker(prev => ({
         ...prev,
         runs: prev.runs + runs,
@@ -121,68 +78,28 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
         fours: prev.fours + (runs === 4 ? 1 : 0),
         sixes: prev.sixes + (runs === 6 ? 1 : 0)
       }));
-    }
 
-    // Update bowler stats
-    setCurrentBowler(prev => ({
-      ...prev,
-      runs: prev.runs + runs,
-      balls: isWide || isNoBall ? prev.balls : prev.balls + 1,
-      overs: Math.floor((isWide || isNoBall ? prev.balls : prev.balls + 1) / 6)
-    }));
-
-    // Add to recent balls
-    let ballDesc = runs.toString();
-    if (isBoundary && runs === 4) ballDesc = '4';
-    if (isBoundary && runs === 6) ballDesc = '6';
-    if (isWide) ballDesc = 'Wd';
-    if (isNoBall) ballDesc = 'Nb';
-    
-    setRecentBalls(prev => [ballDesc, ...prev.slice(0, 5)]);
-
-    // Rotate strike for odd runs (unless boundary)
-    if (runs % 2 === 1 && !isBoundary) {
-      setStriker(prev => ({ ...prev, isOnStrike: false }));
-      setNonStriker(prev => ({ ...prev, isOnStrike: true }));
-      const temp = striker;
-      setStriker(nonStriker);
-      setNonStriker(temp);
+      // Rotate strike for odd runs (unless boundary)
+      if (runs % 2 === 1 && !isBoundary) {
+        const temp = striker;
+        setStriker({ ...nonStriker, isOnStrike: true });
+        setNonStriker({ ...temp, isOnStrike: false });
+      }
     }
 
     // Check if over is complete
-    if (remainingBalls === 0 && !isWide && !isNoBall) {
+    if (ballsInOver === 0 && !isExtra) {
       // Rotate strike at end of over
-      setStriker(prev => ({ ...prev, isOnStrike: false }));
-      setNonStriker(prev => ({ ...prev, isOnStrike: true }));
       const temp = striker;
-      setStriker(nonStriker);
-      setNonStriker(temp);
+      setStriker({ ...nonStriker, isOnStrike: true });
+      setNonStriker({ ...temp, isOnStrike: false });
     }
 
-    // Check if innings should end (overs completed)
+    // Check if innings should end
     if (newOvers >= matchConfig.overs) {
       if (currentInnings === 1) {
-        // Switch innings
-        setCurrentInnings(2);
-        setBattingTeam(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name);
-        setBowlingTeam(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Name : matchConfig.team2Name);
-        setNextPlayerIndex(2);
-        const newBattingPlayers = matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Players : matchConfig.team1Players;
-        const newBowlingPlayers = matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players;
-        setStriker({
-          name: newBattingPlayers[0] || 'Player 1',
-          runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: true
-        });
-        setNonStriker({
-          name: newBattingPlayers[1] || 'Player 2',
-          runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: false
-        });
-        setCurrentBowler({
-          name: newBowlingPlayers[0] || 'Bowler 1',
-          overs: 0, balls: 0, runs: 0, wickets: 0
-        });
+        startSecondInnings();
       } else {
-        // Match finished
         onEndMatch();
       }
     }
@@ -193,31 +110,17 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   };
 
   const processWicket = (dismissalType: string) => {
-    const newWickets = getCurrentTeamWickets() + 1;
+    const newWickets = wickets + 1;
+    setWickets(newWickets);
     
-    if (currentInnings === 1) {
-      setTeam1Wickets(newWickets);
-    } else {
-      setTeam2Wickets(newWickets);
-    }
-
-    setCurrentBowler(prev => ({ ...prev, wickets: prev.wickets + 1 }));
-    setRecentBalls(prev => ['W', ...prev.slice(0, 5)]);
-
-    // Mark striker as out
-    setStriker(prev => ({ ...prev, isOut: true, dismissalType }));
-
     // Get next player
-    const currentBattingPlayers = currentInnings === 1 
-      ? (matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players)
-      : (matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Players : matchConfig.team1Players);
+    const currentPlayers = matchConfig.firstBatting === matchConfig.team1Name 
+      ? matchConfig.team1Players 
+      : matchConfig.team2Players;
     
-    const nextPlayer = currentBattingPlayers[nextPlayerIndex];
-    
-    if (nextPlayer && nextPlayerIndex < currentBattingPlayers.length && newWickets < matchConfig.wickets) {
-      // Replace the out player with next player
+    if (nextPlayerIndex < currentPlayers.length && newWickets < matchConfig.wickets) {
       setStriker({
-        name: nextPlayer,
+        name: currentPlayers[nextPlayerIndex],
         runs: 0,
         balls: 0,
         fours: 0,
@@ -231,266 +134,218 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     setShowWicketDialog(false);
     
     // Check if innings should end
-    if (newWickets >= matchConfig.wickets || getCurrentTeamOvers() >= matchConfig.overs) {
+    if (newWickets >= matchConfig.wickets) {
       if (currentInnings === 1) {
-        // Switch innings
-        setCurrentInnings(2);
-        setBattingTeam(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name);
-        setBowlingTeam(matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Name : matchConfig.team2Name);
-        setNextPlayerIndex(2);
-        const newBattingPlayers = matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team2Players : matchConfig.team1Players;
-        const newBowlingPlayers = matchConfig.firstBatting === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players;
-        setStriker({
-          name: newBattingPlayers[0] || 'Player 1',
-          runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: true
-        });
-        setNonStriker({
-          name: newBattingPlayers[1] || 'Player 2',
-          runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: false
-        });
-        setCurrentBowler({
-          name: newBowlingPlayers[0] || 'Bowler 1',
-          overs: 0, balls: 0, runs: 0, wickets: 0
-        });
+        startSecondInnings();
       } else {
-        // Match finished
         onEndMatch();
       }
     }
   };
 
-  const getRequiredRunRate = () => {
-    if (currentInnings === 1) return 0;
-    const target = team1Score + 1;
-    const remaining = getCurrentTeamScore();
-    const ballsLeft = (matchConfig.overs * 6) - getCurrentTeamBalls();
-    const oversLeft = ballsLeft / 6;
-    return oversLeft > 0 ? ((target - remaining) / oversLeft).toFixed(2) : 0;
+  const startSecondInnings = () => {
+    setCurrentInnings(2);
+    setBattingTeam(matchConfig.firstBatting === matchConfig.team1Name 
+      ? matchConfig.team2Name 
+      : matchConfig.team1Name);
+    
+    // Reset everything for second innings
+    setScore(0);
+    setWickets(0);
+    setOvers(0);
+    setBalls(0);
+    setNextPlayerIndex(2);
+    
+    const newBattingPlayers = matchConfig.firstBatting === matchConfig.team1Name 
+      ? matchConfig.team2Players 
+      : matchConfig.team1Players;
+    
+    setStriker({
+      name: newBattingPlayers[0] || 'Player 1',
+      runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: true
+    });
+    setNonStriker({
+      name: newBattingPlayers[1] || 'Player 2',
+      runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: false
+    });
   };
 
-  const getCurrentRunRate = () => {
-    const score = getCurrentTeamScore();
-    const overs = getCurrentTeamOvers() + (getCurrentTeamBalls() % 6) / 6;
-    return overs > 0 ? (score / overs).toFixed(2) : '0.00';
-  };
+  const dismissalTypes = [
+    'Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket'
+  ];
 
   return (
     <div className="min-h-screen bg-background p-4 space-y-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <Card className="bg-primary text-primary-foreground">
-          <CardHeader className="pb-3">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Trophy className="w-6 h-6" />
-                <h1 className="text-xl font-bold">Live Cricket Match</h1>
-              </div>
-              <Badge variant="secondary">
-                Innings {currentInnings}
-              </Badge>
-            </div>
-          </CardHeader>
-        </Card>
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="outline" onClick={onEndMatch}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            End Match
+          </Button>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold">{matchConfig.team1Name} vs {matchConfig.team2Name}</h1>
+            <Badge variant="secondary">Innings {currentInnings}</Badge>
+          </div>
+          <div className="w-20" />
+        </div>
 
-        {/* Main Scoreboard */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">{battingTeam}</h2>
-                <p className="text-muted-foreground">vs {bowlingTeam}</p>
-              </div>
-              <div className="text-right">
-                <div className="text-4xl font-bold text-primary">
-                  {getCurrentTeamScore()}/{getCurrentTeamWickets()}
-                </div>
-                <div className="text-lg text-muted-foreground">
-                  {getCurrentTeamOvers()}.{getCurrentTeamBalls() % 6} overs
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-sm">Current RR: {getCurrentRunRate()}</span>
-                </div>
-                {currentInnings === 2 && (
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4" />
-                    <span className="text-sm">Required RR: {getRequiredRunRate()}</span>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm">Recent balls:</div>
-                <div className="flex gap-1">
-                  {recentBalls.map((ball, index) => (
-                    <Badge 
-                      key={index} 
-                      variant={ball === 'W' ? 'destructive' : ball === '4' || ball === '6' ? 'default' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {ball}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            {/* Current Players */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card className="bg-accent">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold">Current Batsmen</h3>
-                    <Users className="w-4 h-4" />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className={`p-2 rounded ${striker.isOnStrike ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      <div className="flex justify-between">
-                        <span className="font-medium">{striker.name}</span>
-                        {striker.isOnStrike && <Zap className="w-4 h-4" />}
-                      </div>
-                      <div className="text-sm">
-                        {striker.runs} ({striker.balls}) • 4s: {striker.fours} • 6s: {striker.sixes}
-                      </div>
-                    </div>
-                    
-                    <div className={`p-2 rounded ${nonStriker.isOnStrike ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      <div className="flex justify-between">
-                        <span className="font-medium">{nonStriker.name}</span>
-                        {nonStriker.isOnStrike && <Zap className="w-4 h-4" />}
-                      </div>
-                      <div className="text-sm">
-                        {nonStriker.runs} ({nonStriker.balls}) • 4s: {nonStriker.fours} • 6s: {nonStriker.sixes}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-accent">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold">Current Bowler</h3>
-                    <Target className="w-4 h-4" />
-                  </div>
-                  
-                  <div className="p-2 bg-muted rounded">
-                    <div className="font-medium">{currentBowler.name}</div>
-                    <div className="text-sm">
-                      {currentBowler.overs}.{currentBowler.balls % 6} overs • 
-                      {currentBowler.runs} runs • 
-                      {currentBowler.wickets} wickets
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Toss Info */}
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <div className="text-center text-sm">
+              <strong>{matchConfig.tossWinner}</strong> won the toss and chose to{' '}
+              {matchConfig.firstBatting === matchConfig.tossWinner ? 'bat' : 'bowl'} first
             </div>
           </CardContent>
         </Card>
 
-        {/* Scoring Buttons */}
-        <div className="grid grid-cols-4 gap-3">
-          {/* Runs */}
-          {[0, 1, 2, 3].map((runs) => (
-            <Button
-              key={runs}
-              variant="outline"
-              size="lg"
-              onClick={() => updateScore(runs)}
-              className="h-16 text-lg font-semibold"
-            >
-              {runs}
-            </Button>
-          ))}
-          
-          {/* Boundaries */}
-          <Button
-            variant="default"
-            size="lg"
-            onClick={() => updateScore(4, true)}
-            className="h-16 text-lg font-semibold bg-cricket-boundary text-white col-span-2"
-          >
-            FOUR
-          </Button>
-          
-          <Button
-            variant="default"
-            size="lg"
-            onClick={() => updateScore(6, true)}
-            className="h-16 text-lg font-semibold bg-cricket-six text-white col-span-2"
-          >
-            SIX
-          </Button>
+        {/* Main Scoreboard */}
+        <Card className="bg-gradient-to-r from-primary/10 to-secondary/10">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">{battingTeam}</h2>
+                <p className="text-muted-foreground">Batting</p>
+              </div>
+              <div className="text-right">
+                <div className="text-4xl font-bold text-primary">
+                  {score}/{wickets}
+                </div>
+                <div className="text-lg text-muted-foreground">
+                  {overs}.{balls % 6} overs
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
 
-          {/* Extras & Wicket */}
-          <Button
-            variant="outline"
-            onClick={() => updateScore(1, false, true)}
-            className="h-12"
-          >
-            Wide
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => updateScore(1, false, false, true)}
-            className="h-12"
-          >
-            No Ball
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => updateScore(1)}
-            className="h-12"
-          >
-            Bye
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={handleWicket}
-            className="h-12 font-semibold"
-          >
-            <AlertTriangle className="w-4 h-4 mr-1" />
-            WICKET
-          </Button>
-        </div>
-
-        {/* Match Status */}
-        {currentInnings === 2 && (
-          <Card className="bg-accent">
-            <CardContent className="p-4">
-              <div className="text-center">
-                <div className="text-sm text-muted-foreground">Target</div>
-                <div className="text-2xl font-bold">{team1Score + 1}</div>
+        {/* Current Players */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Batsmen
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className={`p-3 rounded ${striker.isOnStrike ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">{striker.name}</span>
+                  {striker.isOnStrike && <Zap className="w-4 h-4" />}
+                </div>
                 <div className="text-sm">
-                  {team2Score < team1Score + 1 
-                    ? `${(team1Score + 1) - team2Score} runs needed` 
-                    : team2Score >= team1Score + 1 
-                    ? `${matchConfig.team2Name} wins!` 
-                    : 'Match tied!'}
+                  {striker.runs} ({striker.balls}) • 4s: {striker.fours} • 6s: {striker.sixes}
+                </div>
+              </div>
+              
+              <div className={`p-3 rounded ${nonStriker.isOnStrike ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">{nonStriker.name}</span>
+                  {nonStriker.isOnStrike && <Zap className="w-4 h-4" />}
+                </div>
+                <div className="text-sm">
+                  {nonStriker.runs} ({nonStriker.balls}) • 4s: {nonStriker.fours} • 6s: {nonStriker.sixes}
                 </div>
               </div>
             </CardContent>
           </Card>
-        )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Button variant="outline" className="flex-1">
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Undo
-          </Button>
-          <Button variant="outline" onClick={onEndMatch} className="flex-1">
-            End Match
-          </Button>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="w-5 h-5" />
+                Match Info
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div>Overs: {matchConfig.overs}</div>
+                <div>Max Wickets: {matchConfig.wickets}</div>
+                <div>Last Man Stands: {matchConfig.lastManStands ? 'Yes' : 'No'}</div>
+                {currentInnings === 1 && (
+                  <div className="text-muted-foreground">
+                    {Math.max(0, matchConfig.overs - overs)} overs remaining
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Scoring Buttons */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Score</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Run buttons */}
+            <div className="grid grid-cols-4 gap-3">
+              {[0, 1, 2, 3].map((runs) => (
+                <Button
+                  key={runs}
+                  variant="outline"
+                  size="lg"
+                  onClick={() => updateScore(runs)}
+                  className="h-16 text-lg font-semibold"
+                >
+                  {runs}
+                </Button>
+              ))}
+            </div>
+            
+            {/* Boundaries */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="default"
+                size="lg"
+                onClick={() => updateScore(4, true)}
+                className="h-16 text-lg font-semibold"
+              >
+                FOUR
+              </Button>
+              <Button
+                variant="default"
+                size="lg"
+                onClick={() => updateScore(6, true)}
+                className="h-16 text-lg font-semibold"
+              >
+                SIX
+              </Button>
+            </div>
+
+            {/* Extras and Wicket */}
+            <div className="grid grid-cols-4 gap-3">
+              <Button
+                variant="outline"
+                onClick={() => updateScore(1, false, true)}
+              >
+                Wide
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => updateScore(1, false, true)}
+              >
+                No Ball
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => updateScore(1)}
+              >
+                Bye
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleWicket}
+                className="font-semibold"
+              >
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                WICKET
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Wicket Dialog */}
         <Dialog open={showWicketDialog} onOpenChange={setShowWicketDialog}>
@@ -498,16 +353,12 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
             <DialogHeader>
               <DialogTitle>How was {striker.name} dismissed?</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-3 p-4">
-              {[
-                'Bowled', 'Caught', 'LBW', 'Run Out',
-                'Stumped', 'Hit Wicket', 'Caught & Bowled', 'Retired'
-              ].map((type) => (
+            <div className="grid grid-cols-2 gap-2">
+              {dismissalTypes.map((type) => (
                 <Button
                   key={type}
                   variant="outline"
                   onClick={() => processWicket(type)}
-                  className="h-12"
                 >
                   {type}
                 </Button>
