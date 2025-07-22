@@ -27,7 +27,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [battingTeam, setBattingTeam] = useState(matchConfig.firstBatting);
   const [showWicketDialog, setShowWicketDialog] = useState(false);
   const [showInningsBreak, setShowInningsBreak] = useState(false);
-  const [showBowlerSelect, setShowBowlerSelect] = useState(false);
+  const [showBowlerSelect, setShowBowlerSelect] = useState(true); // Show at start
   const [showMatchResult, setShowMatchResult] = useState(false);
   const [currentBowler, setCurrentBowler] = useState('');
   const [matchComplete, setMatchComplete] = useState(false);
@@ -70,6 +70,11 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [nextPlayerIndex, setNextPlayerIndex] = useState(2);
 
   const updateScore = (runs: number, isBoundary = false, isExtra = false) => {
+    // Prevent scoring if no bowler is selected
+    if (!currentBowler) {
+      setShowBowlerSelect(true);
+      return;
+    }
     const newScore = score + runs;
     const newBalls = isExtra ? balls : balls + 1;
     const newOvers = Math.floor(newBalls / 6);
@@ -178,6 +183,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     setBalls(0);
     setNextPlayerIndex(2);
     setCurrentBowler('');
+    setShowBowlerSelect(true); // Show bowler selection for second innings
     
     const newBattingPlayers = matchConfig.firstBatting === matchConfig.team1Name 
       ? matchConfig.team2Players 
@@ -343,6 +349,11 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
             <CardTitle>Quick Score</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {!currentBowler && (
+              <div className="bg-yellow-100 text-yellow-800 p-3 rounded-lg text-center">
+                Please select a bowler before scoring
+              </div>
+            )}
             {/* Run buttons */}
             <div className="grid grid-cols-4 gap-3">
               {[0, 1, 2, 3].map((runs) => (
@@ -352,6 +363,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
                   size="lg"
                   onClick={() => updateScore(runs)}
                   className="h-16 text-lg font-semibold"
+                  disabled={!currentBowler}
                 >
                   {runs}
                 </Button>
@@ -365,6 +377,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
                 size="lg"
                 onClick={() => updateScore(4, true)}
                 className="h-16 text-lg font-semibold"
+                disabled={!currentBowler}
               >
                 FOUR
               </Button>
@@ -373,6 +386,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
                 size="lg"
                 onClick={() => updateScore(6, true)}
                 className="h-16 text-lg font-semibold"
+                disabled={!currentBowler}
               >
                 SIX
               </Button>
@@ -383,18 +397,21 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
               <Button
                 variant="outline"
                 onClick={() => updateScore(1, false, true)}
+                disabled={!currentBowler}
               >
                 Wide
               </Button>
               <Button
                 variant="outline"
                 onClick={() => updateScore(1, false, true)}
+                disabled={!currentBowler}
               >
                 No Ball
               </Button>
               <Button
                 variant="outline"
                 onClick={() => updateScore(1)}
+                disabled={!currentBowler}
               >
                 Bye
               </Button>
@@ -402,6 +419,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
                 variant="destructive"
                 onClick={handleWicket}
                 className="font-semibold"
+                disabled={!currentBowler}
               >
                 <AlertTriangle className="w-4 h-4 mr-1" />
                 WICKET
@@ -454,10 +472,12 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
         </Dialog>
 
         {/* Bowler Selection Dialog */}
-        <Dialog open={showBowlerSelect} onOpenChange={setShowBowlerSelect}>
+        <Dialog open={showBowlerSelect} onOpenChange={() => {}}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Select Bowler for Next Over</DialogTitle>
+              <DialogTitle>
+                {balls === 0 ? 'Select Bowler to Start' : 'Select Bowler for Next Over'}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <Select onValueChange={(value) => setCurrentBowler(value)}>
