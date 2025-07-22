@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap, Camera } from 'lucide-react';
 import { MatchConfig } from './MatchSetup';
 
 interface Player {
@@ -25,12 +26,21 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [currentInnings, setCurrentInnings] = useState(1);
   const [battingTeam, setBattingTeam] = useState(matchConfig.firstBatting);
   const [showWicketDialog, setShowWicketDialog] = useState(false);
+  const [showInningsBreak, setShowInningsBreak] = useState(false);
+  const [showBowlerSelect, setShowBowlerSelect] = useState(false);
+  const [showMatchResult, setShowMatchResult] = useState(false);
+  const [currentBowler, setCurrentBowler] = useState('');
+  const [matchComplete, setMatchComplete] = useState(false);
   
   // Score state
   const [score, setScore] = useState(0);
   const [wickets, setWickets] = useState(0);
   const [overs, setOvers] = useState(0);
   const [balls, setBalls] = useState(0);
+  
+  // First innings score for target calculation
+  const [firstInningsScore, setFirstInningsScore] = useState(0);
+  const [firstInningsWickets, setFirstInningsWickets] = useState(0);
 
   // Player state
   const [striker, setStriker] = useState<Player>({
@@ -93,15 +103,25 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
       const temp = striker;
       setStriker({ ...nonStriker, isOnStrike: true });
       setNonStriker({ ...temp, isOnStrike: false });
+      
+      // Show bowler selection dialog
+      setShowBowlerSelect(true);
     }
 
     // Check if innings should end
     if (newOvers >= matchConfig.overs) {
       if (currentInnings === 1) {
-        startSecondInnings();
+        setFirstInningsScore(newScore);
+        setFirstInningsWickets(wickets);
+        setShowInningsBreak(true);
       } else {
-        onEndMatch();
+        finishMatch();
       }
+    }
+    
+    // Check if target is chased in second innings
+    if (currentInnings === 2 && newScore > firstInningsScore) {
+      finishMatch();
     }
   };
 
@@ -136,9 +156,11 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     // Check if innings should end
     if (newWickets >= matchConfig.wickets) {
       if (currentInnings === 1) {
-        startSecondInnings();
+        setFirstInningsScore(score);
+        setFirstInningsWickets(newWickets);
+        setShowInningsBreak(true);
       } else {
-        onEndMatch();
+        finishMatch();
       }
     }
   };
@@ -155,6 +177,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     setOvers(0);
     setBalls(0);
     setNextPlayerIndex(2);
+    setCurrentBowler('');
     
     const newBattingPlayers = matchConfig.firstBatting === matchConfig.team1Name 
       ? matchConfig.team2Players 
@@ -168,6 +191,36 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
       name: newBattingPlayers[1] || 'Player 2',
       runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: false
     });
+    
+    setShowInningsBreak(false);
+  };
+
+  const finishMatch = () => {
+    setMatchComplete(true);
+    setShowMatchResult(true);
+  };
+
+  const getMatchResult = () => {
+    if (currentInnings === 1) return "Match in progress";
+    
+    const target = firstInningsScore + 1;
+    const currentTeam = battingTeam;
+    const opponentTeam = battingTeam === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name;
+    
+    if (score >= target) {
+      return `${currentTeam} wins by ${matchConfig.wickets - wickets} wickets!`;
+    } else if (overs >= matchConfig.overs || wickets >= matchConfig.wickets) {
+      const margin = firstInningsScore - score;
+      return `${opponentTeam} wins by ${margin} runs!`;
+    }
+    
+    return "Match in progress";
+  };
+
+  const getBowlingTeamPlayers = () => {
+    return battingTeam === matchConfig.team1Name 
+      ? matchConfig.team2Players 
+      : matchConfig.team1Players;
   };
 
   const dismissalTypes = [
@@ -263,10 +316,20 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
               <div className="space-y-2 text-sm">
                 <div>Overs: {matchConfig.overs}</div>
                 <div>Max Wickets: {matchConfig.wickets}</div>
-                <div>Last Man Stands: {matchConfig.lastManStands ? 'Yes' : 'No'}</div>
+                <div>Current Bowler: {currentBowler || 'Not selected'}</div>
+                {currentInnings === 2 && (
+                  <div className="text-primary font-semibold">
+                    Target: {firstInningsScore + 1} runs
+                  </div>
+                )}
                 {currentInnings === 1 && (
                   <div className="text-muted-foreground">
                     {Math.max(0, matchConfig.overs - overs)} overs remaining
+                  </div>
+                )}
+                {currentInnings === 2 && (
+                  <div className="text-muted-foreground">
+                    Need {Math.max(0, firstInningsScore + 1 - score)} runs from {Math.max(0, (matchConfig.overs - overs) * 6 - (balls % 6))} balls
                   </div>
                 )}
               </div>
@@ -363,6 +426,96 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
                   {type}
                 </Button>
               ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Innings Break Dialog */}
+        <Dialog open={showInningsBreak} onOpenChange={() => {}}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-center">End of First Innings</DialogTitle>
+            </DialogHeader>
+            <div className="text-center space-y-4">
+              <div className="text-2xl font-bold">
+                {matchConfig.firstBatting}: {firstInningsScore}/{firstInningsWickets}
+              </div>
+              <div className="text-lg">
+                Target: {firstInningsScore + 1} runs
+              </div>
+              <div className="text-muted-foreground">
+                {battingTeam === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name} needs {firstInningsScore + 1} runs to win
+              </div>
+              <Button onClick={startSecondInnings} className="w-full">
+                Start Second Innings
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bowler Selection Dialog */}
+        <Dialog open={showBowlerSelect} onOpenChange={setShowBowlerSelect}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Select Bowler for Next Over</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Select onValueChange={(value) => setCurrentBowler(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose bowler" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getBowlingTeamPlayers().map((player) => (
+                    <SelectItem key={player} value={player}>
+                      {player}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                onClick={() => setShowBowlerSelect(false)} 
+                className="w-full"
+                disabled={!currentBowler}
+              >
+                Continue
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Match Result Dialog */}
+        <Dialog open={showMatchResult} onOpenChange={() => {}}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-center flex items-center justify-center gap-2">
+                <Trophy className="w-6 h-6 text-yellow-500" />
+                Match Complete!
+              </DialogTitle>
+            </DialogHeader>
+            <div className="text-center space-y-6">
+              <div className="text-2xl font-bold text-primary">
+                {getMatchResult()}
+              </div>
+              
+              <div className="space-y-2">
+                <div className="text-lg">Final Scores:</div>
+                <div>{matchConfig.firstBatting}: {firstInningsScore}/{firstInningsWickets}</div>
+                <div>{battingTeam}: {score}/{wickets}</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline">
+                  <Camera className="w-4 h-4 mr-2" />
+                  Take Photo
+                </Button>
+                <Button variant="outline">
+                  View Stats
+                </Button>
+              </div>
+              
+              <Button onClick={onEndMatch} className="w-full">
+                New Match
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
