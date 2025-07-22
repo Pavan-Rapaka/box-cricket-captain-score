@@ -27,7 +27,8 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [battingTeam, setBattingTeam] = useState(matchConfig.firstBatting);
   const [showWicketDialog, setShowWicketDialog] = useState(false);
   const [showInningsBreak, setShowInningsBreak] = useState(false);
-  const [showBowlerSelect, setShowBowlerSelect] = useState(true); // Show at start
+  const [showBowlerSelect, setShowBowlerSelect] = useState(false);
+  const [showBatsmanSelect, setShowBatsmanSelect] = useState(true); // Show at start
   const [showMatchResult, setShowMatchResult] = useState(false);
   const [currentBowler, setCurrentBowler] = useState('');
   const [matchComplete, setMatchComplete] = useState(false);
@@ -70,8 +71,9 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [nextPlayerIndex, setNextPlayerIndex] = useState(2);
 
   const updateScore = (runs: number, isBoundary = false, isExtra = false) => {
-    // Prevent scoring if no bowler is selected
-    if (!currentBowler) {
+    // Prevent scoring if batsmen or bowler not selected
+    if (!currentBowler || showBatsmanSelect) {
+      if (showBatsmanSelect) return;
       setShowBowlerSelect(true);
       return;
     }
@@ -183,7 +185,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     setBalls(0);
     setNextPlayerIndex(2);
     setCurrentBowler('');
-    setShowBowlerSelect(true); // Show bowler selection for second innings
+    setShowBatsmanSelect(true); // Show batsman selection for second innings
     
     const newBattingPlayers = matchConfig.firstBatting === matchConfig.team1Name 
       ? matchConfig.team2Players 
@@ -349,9 +351,9 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
             <CardTitle>Quick Score</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!currentBowler && (
+            {(showBatsmanSelect || !currentBowler) && (
               <div className="bg-yellow-100 text-yellow-800 p-3 rounded-lg text-center">
-                Please select a bowler before scoring
+                {showBatsmanSelect ? 'Please select batsmen first' : 'Please select a bowler before scoring'}
               </div>
             )}
             {/* Run buttons */}
@@ -471,7 +473,60 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
           </DialogContent>
         </Dialog>
 
-        {/* Bowler Selection Dialog */}
+        {/* Batsman Selection Dialog */}
+        <Dialog open={showBatsmanSelect} onOpenChange={() => {}}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Select Opening Batsmen</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Striker (on strike):</label>
+                <Select onValueChange={(value) => setStriker(prev => ({ ...prev, name: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose striker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(battingTeam === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players).map((player) => (
+                      <SelectItem key={player} value={player}>
+                        {player}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Non-striker:</label>
+                <Select onValueChange={(value) => setNonStriker(prev => ({ ...prev, name: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose non-striker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(battingTeam === matchConfig.team1Name ? matchConfig.team1Players : matchConfig.team2Players)
+                      .filter(player => player !== striker.name)
+                      .map((player) => (
+                        <SelectItem key={player} value={player}>
+                          {player}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Button 
+                onClick={() => {
+                  setShowBatsmanSelect(false);
+                  setShowBowlerSelect(true);
+                }} 
+                className="w-full"
+                disabled={!striker.name || !nonStriker.name || striker.name === nonStriker.name}
+              >
+                Continue
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Dialog open={showBowlerSelect} onOpenChange={() => {}}>
           <DialogContent>
             <DialogHeader>
