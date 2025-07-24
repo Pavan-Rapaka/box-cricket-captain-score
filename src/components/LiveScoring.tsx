@@ -94,6 +94,10 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [nextPlayerIndex, setNextPlayerIndex] = useState(2);
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [bowlerStats, setBowlerStats] = useState<BowlerStats[]>([]);
+  
+  // Store first innings data
+  const [firstInningsPlayers, setFirstInningsPlayers] = useState<Player[]>([]);
+  const [firstInningsBowlers, setFirstInningsBowlers] = useState<BowlerStats[]>([]);
 
   const updateScore = (runs: number, isBoundary = false, isExtra = false) => {
     // Prevent scoring if batsmen or bowler not selected
@@ -238,14 +242,9 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
       const remainingPlayers = currentPlayers.length - newWickets - 1; // -1 for non-striker still batting
       
       if (remainingPlayers <= 0) {
-        // Last man stands - innings should end
-        if (currentInnings === 1) {
-          setFirstInningsScore(score);
-          setFirstInningsWickets(newWickets);
-          setShowInningsBreak(true);
-        } else {
-          finishMatch();
-        }
+        // Last man stands - innings should end after this ball/over
+        // Don't end immediately, let the last batsman continue
+        console.log("Last man standing, but continuing...");
       } else if (nextPlayerIndex < currentPlayers.length) {
         setShowNewBatsmanSelect(true);
       }
@@ -253,6 +252,10 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   };
 
   const startSecondInnings = () => {
+    // Store first innings data before resetting
+    setFirstInningsPlayers([striker, nonStriker, ...allPlayers]);
+    setFirstInningsBowlers([...bowlerStats]);
+    
     setCurrentInnings(2);
     setBattingTeam(matchConfig.firstBatting === matchConfig.team1Name 
       ? matchConfig.team2Name 
@@ -827,9 +830,13 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
               <DialogTitle>Comprehensive Scorecard</DialogTitle>
             </DialogHeader>
             <Scoreboard
+              matchConfig={matchConfig}
+              currentInnings={currentInnings}
               battingTeam={battingTeam}
               bowlingTeam={battingTeam === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name}
-              players={[striker, nonStriker, ...allPlayers]}
+              striker={striker}
+              nonStriker={nonStriker}
+              allPlayers={allPlayers}
               bowlers={bowlerStats.map(bowler => ({
                 ...bowler,
                 isCurrentBowler: bowler.name === currentBowler
@@ -841,6 +848,9 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
               target={currentInnings === 2 ? firstInningsScore + 1 : undefined}
               isSecondInnings={currentInnings === 2}
               firstInningsScore={firstInningsScore}
+              firstInningsWickets={firstInningsWickets}
+              firstInningsPlayers={firstInningsPlayers}
+              firstInningsBowlers={firstInningsBowlers}
             />
           </DialogContent>
         </Dialog>
