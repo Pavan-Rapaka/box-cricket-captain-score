@@ -121,11 +121,18 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
         sixes: prev.sixes + (runs === 6 ? 1 : 0)
       }));
 
-      // Rotate strike for odd runs (unless boundary)
-      if (runs % 2 === 1 && !isBoundary) {
-        const temp = striker;
-        setStriker({ ...nonStriker, isOnStrike: true });
-        setNonStriker({ ...temp, isOnStrike: false });
+      // Rotate strike for odd runs (unless boundary) and only if both batsmen are not out
+      if (runs % 2 === 1 && !isBoundary && !striker.isOut && !nonStriker.isOut) {
+        const remainingPlayers = (battingTeam === matchConfig.team1Name 
+          ? matchConfig.team1Players.length 
+          : matchConfig.team2Players.length) - wickets - 1;
+        
+        // Only rotate if there's more than 1 batsman left
+        if (remainingPlayers > 0) {
+          const temp = striker;
+          setStriker({ ...nonStriker, isOnStrike: true });
+          setNonStriker({ ...temp, isOnStrike: false });
+        }
       }
     }
 
@@ -138,10 +145,19 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
 
     // Check if over is complete
     if (ballsInOver === 0 && !isExtra) {
-      // Rotate strike at end of over
-      const temp = striker;
-      setStriker({ ...nonStriker, isOnStrike: true });
-      setNonStriker({ ...temp, isOnStrike: false });
+      // Rotate strike at end of over only if both batsmen are not out
+      if (!striker.isOut && !nonStriker.isOut) {
+        const remainingPlayers = (battingTeam === matchConfig.team1Name 
+          ? matchConfig.team1Players.length 
+          : matchConfig.team2Players.length) - wickets - 1;
+        
+        // Only rotate if there's more than 1 batsman left
+        if (remainingPlayers > 0) {
+          const temp = striker;
+          setStriker({ ...nonStriker, isOnStrike: true });
+          setNonStriker({ ...temp, isOnStrike: false });
+        }
+      }
       
       // Update bowler overs
       setBowlerStats(prev => prev.map(bowler => 
@@ -214,12 +230,23 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
         finishMatch();
       }
     } else {
-      // Show new batsman selection if there are more players
+      // Check if this is the last batsman (only 1 remaining)
       const currentPlayers = matchConfig.firstBatting === matchConfig.team1Name 
         ? matchConfig.team1Players 
         : matchConfig.team2Players;
       
-      if (nextPlayerIndex < currentPlayers.length) {
+      const remainingPlayers = currentPlayers.length - newWickets - 1; // -1 for non-striker still batting
+      
+      if (remainingPlayers <= 0) {
+        // Last man stands - innings should end
+        if (currentInnings === 1) {
+          setFirstInningsScore(score);
+          setFirstInningsWickets(newWickets);
+          setShowInningsBreak(true);
+        } else {
+          finishMatch();
+        }
+      } else if (nextPlayerIndex < currentPlayers.length) {
         setShowNewBatsmanSelect(true);
       }
     }
@@ -395,15 +422,25 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
                 </div>
               </div>
               
-              <div className={`p-3 rounded ${nonStriker.isOnStrike ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">{nonStriker.name}</span>
-                  {nonStriker.isOnStrike && <Zap className="w-4 h-4" />}
+              {/* Only show non-striker if not out and there are batsmen remaining */}
+              {!nonStriker.isOut && (wickets < matchConfig.wickets - 1) && (
+                <div className={`p-3 rounded ${nonStriker.isOnStrike ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{nonStriker.name}</span>
+                    {nonStriker.isOnStrike && <Zap className="w-4 h-4" />}
+                  </div>
+                  <div className="text-sm">
+                    {nonStriker.runs} ({nonStriker.balls}) • 4s: {nonStriker.fours} • 6s: {nonStriker.sixes}
+                  </div>
                 </div>
-                <div className="text-sm">
-                  {nonStriker.runs} ({nonStriker.balls}) • 4s: {nonStriker.fours} • 6s: {nonStriker.sixes}
+              )}
+              
+              {/* Show "Last Man Standing" message when appropriate */}
+              {wickets >= matchConfig.wickets - 1 && (
+                <div className="p-3 rounded bg-orange-100 text-orange-800 text-center">
+                  <span className="font-medium">Last Man Standing</span>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -718,11 +755,32 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline">
+                <Button variant="outline" onClick={() => {
+                  // Simple photo capture simulation
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  if (ctx) {
+                    canvas.width = 800;
+                    canvas.height = 600;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, 800, 600);
+                    ctx.fillStyle = '#000000';
+                    ctx.font = '24px Arial';
+                    ctx.fillText(`${getMatchResult()}`, 50, 100);
+                    ctx.fillText(`${matchConfig.firstBatting}: ${firstInningsScore}/${firstInningsWickets}`, 50, 150);
+                    ctx.fillText(`${battingTeam}: ${score}/${wickets}`, 50, 200);
+                    
+                    // Download the image
+                    const link = document.createElement('a');
+                    link.download = `match-result-${Date.now()}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                  }
+                }}>
                   <Camera className="w-4 h-4 mr-2" />
                   Take Photo
                 </Button>
-                <Button variant="outline">
+                <Button variant="outline" onClick={() => setShowScoreboard(true)}>
                   View Stats
                 </Button>
               </div>
