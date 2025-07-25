@@ -203,24 +203,34 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     const newWickets = wickets + 1;
     setWickets(newWickets);
     
+    // Determine dismissedBy based on dismissal type
+    let dismissedBy = currentBowler;
+    if (dismissalType === 'Run Out') {
+      dismissedBy = fielder || 'Unknown';
+    } else if (dismissalType === 'Stumped') {
+      dismissedBy = `${fielder || 'Keeper'} (b ${currentBowler})`;
+    }
+    
     // Update striker as out with dismissal details
     setStriker(prev => ({
       ...prev,
       isOut: true,
       dismissalType,
-      dismissedBy: currentBowler,
+      dismissedBy: dismissedBy,
       fielder: fielder
     }));
     
-    // Update bowler stats for wicket
-    setBowlerStats(prev => prev.map(bowler => 
-      bowler.name === currentBowler 
-        ? { ...bowler, wickets: bowler.wickets + 1 }
-        : bowler
-    ));
+    // Update bowler stats for wicket (only if not run out)
+    if (dismissalType !== 'Run Out') {
+      setBowlerStats(prev => prev.map(bowler => 
+        bowler.name === currentBowler 
+          ? { ...bowler, wickets: bowler.wickets + 1 }
+          : bowler
+      ));
+    }
     
     // Add to all players list
-    setAllPlayers(prev => [...prev, { ...striker, isOut: true, dismissalType, dismissedBy: currentBowler, fielder }]);
+    setAllPlayers(prev => [...prev, { ...striker, isOut: true, dismissalType, dismissedBy, fielder }]);
     
     setShowWicketDialog(false);
     
@@ -546,7 +556,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => updateScore(1)}
+                onClick={() => updateScore(1, false, true)}
                 disabled={!currentBowler}
               >
                 Bye
@@ -587,14 +597,16 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
                     {wicketDetails.dismissalType === 'Caught' ? 'Caught by:' : 
-                     wicketDetails.dismissalType === 'Run Out' ? 'Run out by:' : 'Stumped by:'}
+                     wicketDetails.dismissalType === 'Run Out' ? 'Run out by:' : 'Stumped by (Keeper):'}
                   </label>
                   <Select onValueChange={(value) => setWicketDetails(prev => prev ? { ...prev, fielder: value } : null)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select fielder" />
+                      <SelectValue placeholder={wicketDetails.dismissalType === 'Stumped' ? 'Select keeper' : 'Select fielder'} />
                     </SelectTrigger>
                     <SelectContent>
-                      {getBowlingTeamPlayers().map((player) => (
+                      {getBowlingTeamPlayers()
+                        .filter(player => wicketDetails.dismissalType !== 'Stumped' || player !== currentBowler)
+                        .map((player) => (
                         <SelectItem key={player} value={player}>
                           {player}
                         </SelectItem>
