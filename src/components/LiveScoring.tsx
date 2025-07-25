@@ -21,6 +21,33 @@ interface Player {
   fielder?: string;
 }
 
+interface InningsData {
+  runs: number;
+  wickets: number;
+  overs: number;
+  balls: number;
+  extras: number;
+  declared: boolean;
+  allOut: boolean;
+  team: string;
+  players: Player[];
+  bowlerStats: BowlerStats[];
+}
+
+interface MatchState {
+  format: string;
+  innings: InningsData[];
+  currentInnings: number;
+  battingTeam: string;
+  result?: string;
+  superOverData?: {
+    team1Score: number;
+    team2Score: number;
+    team1Boundaries: number;
+    team2Boundaries: number;
+  };
+}
+
 interface BowlerStats {
   name: string;
   overs: number;
@@ -42,12 +69,21 @@ interface LiveScoringProps {
 }
 
 const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
+  const [matchState, setMatchState] = useState<MatchState>({
+    format: matchConfig.format,
+    innings: [],
+    currentInnings: 1,
+    battingTeam: matchConfig.firstBatting,
+  });
+  
   const [currentInnings, setCurrentInnings] = useState(1);
   const [battingTeam, setBattingTeam] = useState(matchConfig.firstBatting);
   const [showWicketDialog, setShowWicketDialog] = useState(false);
   const [showInningsBreak, setShowInningsBreak] = useState(false);
   const [showBowlerSelect, setShowBowlerSelect] = useState(false);
   const [showBatsmanSelect, setShowBatsmanSelect] = useState(true); // Show at start
+  const [isSuperOver, setIsSuperOver] = useState(false);
+  const [superOverRound, setSuperOverRound] = useState(1);
   const [showNewBatsmanSelect, setShowNewBatsmanSelect] = useState(false);
   const [showMatchResult, setShowMatchResult] = useState(false);
   const [showScoreboard, setShowScoreboard] = useState(false);
@@ -180,7 +216,9 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
 
     // Check if innings should end
     if (newOvers >= matchConfig.overs) {
-      if (currentInnings === 1) {
+      if (isSuperOver) {
+        handleSuperOverComplete();
+      } else if (currentInnings === 1) {
         setFirstInningsScore(newScore);
         setFirstInningsWickets(wickets);
         setShowInningsBreak(true);
@@ -190,8 +228,13 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     }
     
     // Check if target is chased in second innings
-    if (currentInnings === 2 && newScore > firstInningsScore) {
+    if (currentInnings === 2 && newScore > firstInningsScore && !isSuperOver) {
       finishMatch();
+    }
+    
+    // Check if Super Over target is chased
+    if (isSuperOver && superOverRound === 2 && matchState.superOverData && newScore > matchState.superOverData.team1Score) {
+      finishSuperOver();
     }
   };
 
@@ -236,7 +279,9 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
     
     // Check if innings should end
     if (newWickets >= matchConfig.wickets) {
-      if (currentInnings === 1) {
+      if (isSuperOver) {
+        handleSuperOverComplete();
+      } else if (currentInnings === 1) {
         setFirstInningsScore(score);
         setFirstInningsWickets(newWickets);
         setShowInningsBreak(true);
@@ -300,12 +345,147 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   };
 
   const finishMatch = () => {
+    // Check if Super Over is needed
+    if (matchConfig.format !== 'Super Over' && currentInnings === 2 && score === firstInningsScore) {
+      // Tied match - start Super Over
+      setIsSuperOver(true);
+      startSuperOver();
+      return;
+    }
+    
+    setMatchComplete(true);
+    setShowMatchResult(true);
+  };
+
+  const startSuperOver = () => {
+    // Set Super Over configuration
+    const superOverConfig = { ...matchConfig, overs: 1, format: 'Super Over' };
+    
+    // Reset for Super Over
+    setCurrentInnings(1);
+    setSuperOverRound(1);
+    setBattingTeam(matchConfig.firstBatting); // Original team that batted first goes first in Super Over
+    
+    // Reset score states
+    setScore(0);
+    setWickets(0);
+    setOvers(0);
+    setBalls(0);
+    setNextPlayerIndex(2);
+    setCurrentBowler('');
+    setPreviousBowler('');
+    setAllPlayers([]);
+    setBowlerStats([]);
+    setShowBatsmanSelect(true);
+    
+    // Reset players for Super Over
+    const battingPlayers = matchConfig.firstBatting === matchConfig.team1Name 
+      ? matchConfig.team1Players 
+      : matchConfig.team2Players;
+    
+    setStriker({
+      name: battingPlayers[0] || 'Player 1',
+      runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: true
+    });
+    setNonStriker({
+      name: battingPlayers[1] || 'Player 2',
+      runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: false
+    });
+  };
+
+  const handleSuperOverComplete = () => {
+    if (superOverRound === 1) {
+      // Store first Super Over data and start second
+      if (!matchState.superOverData) {
+        setMatchState(prev => ({
+          ...prev,
+          superOverData: {
+            team1Score: battingTeam === matchConfig.team1Name ? score : 0,
+            team2Score: battingTeam === matchConfig.team2Name ? score : 0,
+            team1Boundaries: battingTeam === matchConfig.team1Name ? (striker.fours + striker.sixes + nonStriker.fours + nonStriker.sixes) : 0,
+            team2Boundaries: battingTeam === matchConfig.team2Name ? (striker.fours + striker.sixes + nonStriker.fours + nonStriker.sixes) : 0,
+          }
+        }));
+      }
+      
+      // Start second Super Over
+      setSuperOverRound(2);
+      setBattingTeam(battingTeam === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name);
+      
+      // Reset for second Super Over
+      setScore(0);
+      setWickets(0);
+      setOvers(0);
+      setBalls(0);
+      setNextPlayerIndex(2);
+      setCurrentBowler('');
+      setPreviousBowler('');
+      setAllPlayers([]);
+      setBowlerStats([]);
+      setShowBatsmanSelect(true);
+      
+      const newBattingPlayers = battingTeam === matchConfig.team1Name 
+        ? matchConfig.team2Players 
+        : matchConfig.team1Players;
+      
+      setStriker({
+        name: newBattingPlayers[0] || 'Player 1',
+        runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: true
+      });
+      setNonStriker({
+        name: newBattingPlayers[1] || 'Player 2',
+        runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, isOnStrike: false
+      });
+    } else {
+      // Both Super Overs complete - determine winner
+      finishSuperOver();
+    }
+  };
+
+  const finishSuperOver = () => {
     setMatchComplete(true);
     setShowMatchResult(true);
   };
 
   const getMatchResult = () => {
-    if (currentInnings === 1) return "Match in progress";
+    if (isSuperOver) {
+      if (superOverRound === 1) return "Super Over in progress";
+      if (!matchState.superOverData) return "Super Over in progress";
+      
+      const team1Score = battingTeam === matchConfig.team1Name ? score : matchState.superOverData.team1Score;
+      const team2Score = battingTeam === matchConfig.team2Name ? score : matchState.superOverData.team2Score;
+      
+      if (team1Score > team2Score) {
+        return `${matchConfig.team1Name} wins Super Over by ${team1Score - team2Score} runs!`;
+      } else if (team2Score > team1Score) {
+        return `${matchConfig.team2Name} wins Super Over by ${team2Score - team1Score} runs!`;
+      } else {
+        // If scores are tied, check boundaries
+        const team1Boundaries = battingTeam === matchConfig.team1Name 
+          ? (striker.fours + striker.sixes + nonStriker.fours + nonStriker.sixes) 
+          : matchState.superOverData.team1Boundaries;
+        const team2Boundaries = battingTeam === matchConfig.team2Name 
+          ? (striker.fours + striker.sixes + nonStriker.fours + nonStriker.sixes) 
+          : matchState.superOverData.team2Boundaries;
+          
+        if (team1Boundaries > team2Boundaries) {
+          return `${matchConfig.team1Name} wins Super Over on boundaries (${team1Boundaries} vs ${team2Boundaries})!`;
+        } else if (team2Boundaries > team1Boundaries) {
+          return `${matchConfig.team2Name} wins Super Over on boundaries (${team2Boundaries} vs ${team1Boundaries})!`;
+        } else {
+          return "Super Over tied - Another Super Over needed!";
+        }
+      }
+    }
+    
+    if (matchConfig.format === 'Test') {
+      // Test match result logic
+      if (currentInnings <= 2) return "Test match in progress";
+      // Add Test match specific result logic here
+      return "Test match in progress";
+    }
+    
+    if (currentInnings === 1 && !isSuperOver) return "Match in progress";
     
     const target = firstInningsScore + 1;
     const currentTeam = battingTeam;
@@ -380,7 +560,12 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold">{matchConfig.team1Name} vs {matchConfig.team2Name}</h1>
-            <Badge variant="secondary">Innings {currentInnings}</Badge>
+            <div className="flex gap-2 justify-center">
+              <Badge variant="secondary">
+                {isSuperOver ? `Super Over ${superOverRound}` : `Innings ${currentInnings}`}
+              </Badge>
+              <Badge variant="outline">{matchConfig.format}</Badge>
+            </div>
           </div>
           <div className="w-20" />
         </div>

@@ -5,9 +5,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Users, Clock, Target, Trophy } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Users, Clock, Target, Trophy, Zap, Calendar, Award } from 'lucide-react';
+
+export type MatchFormat = 'T20' | 'ODI' | 'Test' | 'Super Over' | 'Custom';
 
 export interface MatchConfig {
+  format: MatchFormat;
   overs: number;
   wickets: number;
   lastManStands: boolean;
@@ -19,6 +23,9 @@ export interface MatchConfig {
   team2Captain: string;
   tossWinner: string;
   firstBatting: string;
+  innings: number; // For test matches
+  daysPlanned?: number; // For test matches
+  followOnMargin?: number; // For test matches
 }
 
 interface MatchSetupProps {
@@ -27,7 +34,8 @@ interface MatchSetupProps {
 
 const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
   const [config, setConfig] = useState<MatchConfig>({
-    overs: 6,
+    format: 'T20',
+    overs: 20,
     wickets: 10,
     lastManStands: false,
     team1Name: '',
@@ -37,8 +45,35 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
     team1Captain: '',
     team2Captain: '',
     tossWinner: '',
-    firstBatting: ''
+    firstBatting: '',
+    innings: 2,
+    daysPlanned: 5,
+    followOnMargin: 200
   });
+
+  const handleFormatChange = (format: MatchFormat) => {
+    let newConfig: Partial<MatchConfig> = { format };
+    
+    switch (format) {
+      case 'T20':
+        newConfig = { ...newConfig, overs: 20, innings: 2 };
+        break;
+      case 'ODI':
+        newConfig = { ...newConfig, overs: 50, innings: 2 };
+        break;
+      case 'Test':
+        newConfig = { ...newConfig, overs: 90, innings: 4, daysPlanned: 5, followOnMargin: 200 };
+        break;
+      case 'Super Over':
+        newConfig = { ...newConfig, overs: 1, innings: 2 };
+        break;
+      case 'Custom':
+        // Keep current settings
+        break;
+    }
+    
+    setConfig(prev => ({ ...prev, ...newConfig }));
+  };
 
   const addPlayer = (team: 'team1' | 'team2') => {
     if (team === 'team1') {
@@ -86,6 +121,58 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
           <p className="text-muted-foreground mt-2">Configure your match details</p>
         </div>
 
+        {/* Match Format */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="w-5 h-5" />
+              Match Format
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="format">Select Format</Label>
+              <Select value={config.format} onValueChange={handleFormatChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose match format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="T20">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      T20 (20 overs)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="ODI">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      ODI (50 overs)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Test">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Test Match (4 innings)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Super Over">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4" />
+                      Super Over (1 over)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Custom">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="w-4 h-4" />
+                      Custom Format
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Match Rules */}
         <Card className="mb-6">
           <CardHeader>
@@ -97,14 +184,17 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="overs">Overs per innings</Label>
+                <Label htmlFor="overs">
+                  {config.format === 'Super Over' ? 'Balls per over' : 'Overs per innings'}
+                </Label>
                 <Input
                   id="overs"
                   type="number"
                   min="1"
-                  max="50"
+                  max={config.format === 'Test' ? "200" : config.format === 'Super Over' ? "6" : "50"}
                   value={config.overs}
                   onChange={(e) => setConfig(prev => ({ ...prev, overs: Number(e.target.value) }))}
+                  disabled={config.format !== 'Custom'}
                 />
               </div>
               <div>
@@ -119,6 +209,33 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
                 />
               </div>
             </div>
+
+            {config.format === 'Test' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="days">Days Planned</Label>
+                  <Input
+                    id="days"
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={config.daysPlanned}
+                    onChange={(e) => setConfig(prev => ({ ...prev, daysPlanned: Number(e.target.value) }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="followon">Follow-on Margin</Label>
+                  <Input
+                    id="followon"
+                    type="number"
+                    min="100"
+                    max="300"
+                    value={config.followOnMargin}
+                    onChange={(e) => setConfig(prev => ({ ...prev, followOnMargin: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            )}
             
             <div className="flex items-center space-x-2">
               <Switch
@@ -128,6 +245,24 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
               />
               <Label htmlFor="lastman">Last man stands rule</Label>
             </div>
+
+            {config.format === 'Super Over' && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>Super Over Rules:</strong> Each team gets 6 balls to score as many runs as possible. 
+                  If scores are tied, the team with more boundaries wins.
+                </p>
+              </div>
+            )}
+
+            {config.format === 'Test' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Test Match Rules:</strong> Each team bats twice. Follow-on applies if first innings lead 
+                  exceeds the margin. Match can end in draw if time runs out.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
