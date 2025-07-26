@@ -62,7 +62,7 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
         newConfig = { ...newConfig, overs: 50, innings: 2 };
         break;
       case 'Test':
-        newConfig = { ...newConfig, overs: 90, innings: 4, daysPlanned: 5, followOnMargin: 200 };
+        newConfig = { ...newConfig, innings: 4, daysPlanned: 5, followOnMargin: 200 };
         break;
       case 'Super Over':
         newConfig = { ...newConfig, overs: 1, innings: 2 };
@@ -98,6 +98,18 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
       const newPlayers = [...config.team2Players];
       newPlayers[index] = name;
       setConfig(prev => ({ ...prev, team2Players: newPlayers }));
+    }
+    updateWickets();
+  };
+
+  const updateWickets = () => {
+    const team1ValidPlayers = config.team1Players.filter(p => p.trim()).length;
+    const team2ValidPlayers = config.team2Players.filter(p => p.trim()).length;
+    const maxPlayers = Math.max(team1ValidPlayers, team2ValidPlayers);
+    
+    if (maxPlayers > 0) {
+      const newWickets = config.lastManStands ? maxPlayers : maxPlayers - 1;
+      setConfig(prev => ({ ...prev, wickets: newWickets }));
     }
   };
 
@@ -206,6 +218,7 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
                   max="11"
                   value={config.wickets}
                   onChange={(e) => setConfig(prev => ({ ...prev, wickets: Number(e.target.value) }))}
+                  placeholder="Auto-calculated based on players"
                 />
               </div>
             </div>
@@ -241,7 +254,10 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
               <Switch
                 id="lastman"
                 checked={config.lastManStands}
-                onCheckedChange={(checked) => setConfig(prev => ({ ...prev, lastManStands: checked }))}
+                onCheckedChange={(checked) => {
+                  setConfig(prev => ({ ...prev, lastManStands: checked }));
+                  setTimeout(updateWickets, 0);
+                }}
               />
               <Label htmlFor="lastman">Last man stands rule</Label>
             </div>
