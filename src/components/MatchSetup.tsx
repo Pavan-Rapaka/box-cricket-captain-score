@@ -108,6 +108,7 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
     const maxPlayers = Math.max(team1ValidPlayers, team2ValidPlayers);
     
     if (maxPlayers > 0) {
+      // Default: wickets = players - 1, Last man stands: wickets = players
       const newWickets = config.lastManStands ? maxPlayers : maxPlayers - 1;
       setConfig(prev => ({ ...prev, wickets: newWickets }));
     }
@@ -206,7 +207,7 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
                   max={config.format === 'Test' ? "200" : config.format === 'Super Over' ? "6" : "50"}
                   value={config.overs}
                   onChange={(e) => setConfig(prev => ({ ...prev, overs: Number(e.target.value) }))}
-                  disabled={config.format !== 'Custom'}
+                  disabled={config.format !== 'Custom' && config.format !== 'Test'}
                 />
               </div>
               <div>
