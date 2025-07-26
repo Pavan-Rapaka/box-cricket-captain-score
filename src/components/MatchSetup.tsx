@@ -87,6 +87,7 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
         team2Players: [...prev.team2Players, '']
       }));
     }
+    setTimeout(updateWickets, 0);
   };
 
   const updatePlayer = (team: 'team1' | 'team2', index: number, name: string) => {
@@ -108,7 +109,7 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
     const maxPlayers = Math.max(team1ValidPlayers, team2ValidPlayers);
     
     if (maxPlayers > 0) {
-      // Default: wickets = players - 1, Last man stands: wickets = players
+      // Last man stands: wickets = players, Default: wickets = players - 1
       const newWickets = config.lastManStands ? maxPlayers : maxPlayers - 1;
       setConfig(prev => ({ ...prev, wickets: newWickets }));
     }
@@ -195,33 +196,26 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="overs">
-                  {config.format === 'Super Over' ? 'Balls per over' : 'Overs per innings'}
-                </Label>
-                <Input
-                  id="overs"
-                  type="number"
-                  min="1"
-                  max={config.format === 'Test' ? "200" : config.format === 'Super Over' ? "6" : "50"}
-                  value={config.overs}
-                  onChange={(e) => setConfig(prev => ({ ...prev, overs: Number(e.target.value) }))}
-                  disabled={config.format !== 'Custom' && config.format !== 'Test'}
-                />
-              </div>
-              <div>
-                <Label htmlFor="wickets">Maximum wickets</Label>
-                <Input
-                  id="wickets"
-                  type="number"
-                  min="1"
-                  max="11"
-                  value={config.wickets}
-                  onChange={(e) => setConfig(prev => ({ ...prev, wickets: Number(e.target.value) }))}
-                  placeholder="Auto-calculated based on players"
-                />
-              </div>
+            <div>
+              <Label htmlFor="overs">
+                {config.format === 'Super Over' ? 'Balls per over' : 'Overs per innings'}
+              </Label>
+              <Input
+                id="overs"
+                type="number"
+                min="1"
+                max={config.format === 'Test' ? "200" : config.format === 'Super Over' ? "6" : "50"}
+                value={config.overs}
+                onChange={(e) => setConfig(prev => ({ ...prev, overs: Number(e.target.value) }))}
+                disabled={config.format !== 'Custom' && config.format !== 'Test'}
+              />
+            </div>
+            
+            <div className="bg-muted/50 border rounded-lg p-3">
+              <Label className="text-sm font-medium">Auto-calculated Wickets: {config.wickets}</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                {config.lastManStands ? 'Equal to number of players (Last man stands enabled)' : 'One less than number of players'}
+              </p>
             </div>
 
             {config.format === 'Test' && (
