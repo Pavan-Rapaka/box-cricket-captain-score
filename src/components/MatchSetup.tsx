@@ -100,7 +100,7 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
       newPlayers[index] = name;
       setConfig(prev => ({ ...prev, team2Players: newPlayers }));
     }
-    updateWickets();
+    setTimeout(updateWickets, 0);
   };
 
   const updateWickets = () => {
