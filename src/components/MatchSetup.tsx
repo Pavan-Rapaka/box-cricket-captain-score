@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Clock, Target, Trophy, Zap, Calendar, Award } from 'lucide-react';
+import { Users, Clock, Target, Trophy, Zap, Calendar, Award, ArrowLeft } from 'lucide-react';
 
 export type MatchFormat = 'T20' | 'ODI' | 'Test' | 'Super Over' | 'Custom';
 
@@ -30,9 +30,10 @@ export interface MatchConfig {
 
 interface MatchSetupProps {
   onStartMatch: (config: MatchConfig) => void;
+  onBack?: () => void;
 }
 
-const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
+const MatchSetup = ({ onStartMatch, onBack }: MatchSetupProps) => {
   const [config, setConfig] = useState<MatchConfig>({
     format: 'T20',
     overs: 20,
@@ -130,6 +131,12 @@ const MatchSetup = ({ onStartMatch }: MatchSetupProps) => {
     <div className="min-h-screen bg-background p-4 space-y-6">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
+          {onBack && (
+            <Button variant="ghost" onClick={onBack} className="float-left">
+              <Trophy className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+          )}
           <Trophy className="w-16 h-16 text-cricket-gold mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-foreground">Cricket Match Setup</h1>
           <p className="text-muted-foreground mt-2">Configure your match details</p>
