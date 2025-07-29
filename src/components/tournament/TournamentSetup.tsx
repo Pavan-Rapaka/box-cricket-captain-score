@@ -9,26 +9,46 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Trophy, Users, Calendar as CalendarIcon, ArrowLeft, Target } from 'lucide-react';
 import { format as formatDate } from 'date-fns';
 import { Tournament, TournamentMatch } from '@/pages/Tournament';
+import PlayerInput from './PlayerInput';
 
 interface TournamentSetupProps {
+  tournament?: Tournament;
   onCreateTournament: (tournament: Tournament) => void;
   onCancel: () => void;
+  isEditing?: boolean;
 }
 
-const TournamentSetup = ({ onCreateTournament, onCancel }: TournamentSetupProps) => {
-  const [name, setName] = useState('');
-  const [format, setFormat] = useState<'round-robin' | 'knockout' | 'league' | 'tri-series'>('round-robin');
-  const [teams, setTeams] = useState<string[]>(['', '']);
-  const [startDate, setStartDate] = useState<Date>();
+const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing = false }: TournamentSetupProps) => {
+  const [name, setName] = useState(tournament?.name || '');
+  const [format, setFormat] = useState<'round-robin' | 'knockout' | 'league' | 'tri-series'>(tournament?.format || 'round-robin');
+  const [teams, setTeams] = useState<string[]>(tournament?.teams || ['', '']);
+  const [startDate, setStartDate] = useState<Date | undefined>(tournament?.startDate);
+  const [players, setPlayers] = useState<Record<string, string[]>>(tournament?.players || {});
 
   const addTeam = () => {
     setTeams(prev => [...prev, '']);
   };
 
   const updateTeam = (index: number, value: string) => {
+    const oldTeamName = teams[index];
     const newTeams = [...teams];
     newTeams[index] = value;
     setTeams(newTeams);
+    
+    // Update players mapping if team name changed
+    if (oldTeamName && oldTeamName !== value && players[oldTeamName]) {
+      const newPlayers = { ...players };
+      newPlayers[value] = newPlayers[oldTeamName];
+      delete newPlayers[oldTeamName];
+      setPlayers(newPlayers);
+    }
+  };
+
+  const updatePlayers = (teamName: string, playerList: string[]) => {
+    setPlayers(prev => ({
+      ...prev,
+      [teamName]: playerList
+    }));
   };
 
   const removeTeam = (index: number) => {
@@ -87,15 +107,16 @@ const TournamentSetup = ({ onCreateTournament, onCancel }: TournamentSetupProps)
     const validTeams = teams.filter(t => t.trim());
     const matches = generateMatches(validTeams, format);
 
-    const tournament: Tournament = {
-      id: `tournament-${Date.now()}`,
+    const tournamentData: Tournament = {
+      id: tournament?.id || `tournament-${Date.now()}`,
       name,
       format,
       teams: validTeams,
-      status: 'setup',
+      players,
+      status: tournament?.status || 'setup',
       startDate,
-      matches,
-      pointsTable: validTeams.map(team => ({
+      matches: isEditing ? tournament?.matches || [] : matches,
+      pointsTable: isEditing ? tournament?.pointsTable || [] : validTeams.map(team => ({
         team,
         played: 0,
         won: 0,
@@ -107,7 +128,7 @@ const TournamentSetup = ({ onCreateTournament, onCancel }: TournamentSetupProps)
       }))
     };
 
-    onCreateTournament(tournament);
+    onCreateTournament(tournamentData);
   };
 
   const isFormValid = () => {
@@ -123,8 +144,12 @@ const TournamentSetup = ({ onCreateTournament, onCancel }: TournamentSetupProps)
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Create Tournament</h1>
-            <p className="text-muted-foreground">Set up a new cricket tournament</p>
+            <h1 className="text-2xl font-bold text-foreground">
+              {isEditing ? 'Edit Tournament' : 'Create Tournament'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isEditing ? 'Update tournament details' : 'Set up a new cricket tournament'}
+            </p>
           </div>
         </div>
 
@@ -189,25 +214,38 @@ const TournamentSetup = ({ onCreateTournament, onCancel }: TournamentSetupProps)
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Teams
+              Teams & Players
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {teams.map((team, index) => (
-              <div key={index} className="flex gap-2">
-                <Input
-                  placeholder={`Team ${index + 1} name`}
-                  value={team}
-                  onChange={(e) => updateTeam(index, e.target.value)}
-                />
-                {teams.length > 2 && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => removeTeam(index)}
-                  >
-                    Remove
-                  </Button>
+              <div key={index} className="space-y-3 p-4 border rounded-lg">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder={`Team ${index + 1} name`}
+                    value={team}
+                    onChange={(e) => updateTeam(index, e.target.value)}
+                  />
+                  {teams.length > 2 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => removeTeam(index)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                
+                {team.trim() && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Players for {team}</Label>
+                    <PlayerInput 
+                      teamName={team}
+                      players={players[team] || []}
+                      onUpdatePlayers={updatePlayers}
+                    />
+                  </div>
                 )}
               </div>
             ))}
@@ -269,7 +307,7 @@ const TournamentSetup = ({ onCreateTournament, onCancel }: TournamentSetupProps)
             className="flex-1"
           >
             <Target className="w-4 h-4 mr-2" />
-            Create Tournament
+            {isEditing ? 'Update Tournament' : 'Create Tournament'}
           </Button>
         </div>
       </div>

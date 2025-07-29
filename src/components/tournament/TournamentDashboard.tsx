@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Trophy, Calendar, Users, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, Users, BarChart3, Home } from 'lucide-react';
 import { Tournament } from '@/pages/Tournament';
 import MatchSchedule from './MatchSchedule';
 import PointsTable from './PointsTable';
@@ -25,9 +25,14 @@ const TournamentDashboard = ({ tournament, onBack, onUpdateTournament }: Tournam
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => window.location.href = '/'}>
+              <Home className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" onClick={onBack}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          </div>
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <Trophy className="w-6 h-6 text-cricket-gold" />

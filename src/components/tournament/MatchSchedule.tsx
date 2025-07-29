@@ -142,14 +142,15 @@ const MatchSchedule = ({ tournament, onUpdateTournament }: MatchScheduleProps) =
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button 
-                            size="sm" 
+                            size="sm"
+                            className="bg-cricket-gold hover:bg-cricket-gold/90"
                             onClick={() => {
                               setSelectedMatch(match);
                               setResult({ winner: '', team1Score: '', team2Score: '', margin: '' });
                             }}
                           >
                             <Play className="w-3 h-3 mr-1" />
-                            Update
+                            Score Match
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
