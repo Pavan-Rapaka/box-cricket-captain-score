@@ -6,8 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Clock, Trophy, Play } from 'lucide-react';
+import { Calendar, Clock, Trophy, Play, Target } from 'lucide-react';
 import { Tournament, TournamentMatch } from '@/pages/Tournament';
+import TournamentLiveScoring from './TournamentLiveScoring';
 
 interface MatchScheduleProps {
   tournament: Tournament;
@@ -16,6 +17,7 @@ interface MatchScheduleProps {
 
 const MatchSchedule = ({ tournament, onUpdateTournament }: MatchScheduleProps) => {
   const [selectedMatch, setSelectedMatch] = useState<TournamentMatch | null>(null);
+  const [showLiveScoring, setShowLiveScoring] = useState(false);
   const [result, setResult] = useState({
     winner: '',
     team1Score: '',
@@ -139,19 +141,31 @@ const MatchSchedule = ({ tournament, onUpdateTournament }: MatchScheduleProps) =
                     )}
 
                     {match.status !== 'completed' && (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            size="sm"
-                            className="bg-cricket-gold hover:bg-cricket-gold/90"
-                            onClick={() => {
-                              setSelectedMatch(match);
-                              setResult({ winner: '', team1Score: '', team2Score: '', margin: '' });
-                            }}
-                          >
-                            <Play className="w-3 h-3 mr-1" />
-                            Score Match
-                          </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedMatch(match);
+                            setShowLiveScoring(true);
+                          }}
+                        >
+                          <Target className="w-3 h-3 mr-1" />
+                          Live Score
+                        </Button>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              size="sm"
+                              className="bg-cricket-gold hover:bg-cricket-gold/90"
+                              onClick={() => {
+                                setSelectedMatch(match);
+                                setResult({ winner: '', team1Score: '', team2Score: '', margin: '' });
+                              }}
+                            >
+                              <Play className="w-3 h-3 mr-1" />
+                              Quick Score
+                         </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
@@ -220,6 +234,7 @@ const MatchSchedule = ({ tournament, onUpdateTournament }: MatchScheduleProps) =
                           </div>
                         </DialogContent>
                       </Dialog>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -228,6 +243,53 @@ const MatchSchedule = ({ tournament, onUpdateTournament }: MatchScheduleProps) =
           </CardContent>
         </Card>
       ))}
+      
+      {showLiveScoring && selectedMatch && (
+        <TournamentLiveScoring
+          match={selectedMatch}
+          tournament={tournament}
+          onMatchComplete={(updatedMatch, fantasyPoints) => {
+            const updatedMatches = tournament.matches.map(match => 
+              match.id === updatedMatch.id ? updatedMatch : match
+            );
+
+            // Update points table
+            const updatedPointsTable = tournament.pointsTable.map(standing => {
+              if (standing.team === updatedMatch.result?.winner) {
+                return {
+                  ...standing,
+                  played: standing.played + 1,
+                  won: standing.won + 1,
+                  points: standing.points + 2
+                };
+              } else if (standing.team === updatedMatch.team1 || standing.team === updatedMatch.team2) {
+                return {
+                  ...standing,
+                  played: standing.played + 1,
+                  lost: standing.lost + 1
+                };
+              }
+              return standing;
+            });
+
+            const updatedTournament = {
+              ...tournament,
+              matches: updatedMatches,
+              pointsTable: updatedPointsTable,
+              status: updatedMatches.every(m => m.status === 'completed') ? 'completed' as const : 'ongoing' as const,
+              fantasyPoints: fantasyPoints
+            };
+
+            onUpdateTournament(updatedTournament);
+            setShowLiveScoring(false);
+            setSelectedMatch(null);
+          }}
+          onBack={() => {
+            setShowLiveScoring(false);
+            setSelectedMatch(null);
+          }}
+        />
+      )}
     </div>
   );
 };

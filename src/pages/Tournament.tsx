@@ -22,6 +22,19 @@ export interface Tournament {
   endDate?: Date;
   matches: TournamentMatch[];
   pointsTable: TeamStanding[];
+  fantasyPoints?: FantasyPoints[];
+}
+
+export interface FantasyPoints {
+  playerName: string;
+  team: string;
+  runs: number;
+  boundaries: number;
+  sixes: number;
+  wickets: number;
+  catches: number;
+  runOuts: number;
+  totalPoints: number;
 }
 
 export interface TournamentMatch {
