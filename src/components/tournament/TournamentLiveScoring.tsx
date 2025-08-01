@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap, BarChart3, Eye, EyeOff } from 'lucide-react';
 import { Tournament, TournamentMatch } from '@/pages/Tournament';
 import Scoreboard from '../Scoreboard';
 import { MatchConfig } from '../MatchSetup';
@@ -84,6 +84,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   const [previousBowler, setPreviousBowler] = useState('');
   const [wicketDetails, setWicketDetails] = useState<WicketDetails | null>(null);
   const [declared, setDeclared] = useState(false);
+  const [spectatorMode, setSpectatorMode] = useState(false);
   
   // Score state
   const [score, setScore] = useState(0);
@@ -244,8 +245,9 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
       setShowBowlerSelect(true);
     }
 
-    // Check if innings should end (20 overs for T20)
-    if (newOvers >= 20) {
+    // Check if innings should end (based on tournament overs)
+    const maxOvers = tournament.overs || 20;
+    if (newOvers >= maxOvers) {
       if (currentInnings === 1) {
         setFirstInningsScore(newScore);
         setFirstInningsWickets(wickets);
@@ -307,8 +309,9 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
     setAllPlayers(prev => [...prev, { ...striker, isOut: true, dismissalType, dismissedBy, fielder }]);
     setShowWicketDialog(false);
     
-    // Check if innings should end
-    if (newWickets >= 10) {
+    // Check if innings should end (based on tournament wickets)
+    const maxWickets = tournament.wickets || 10;
+    if (newWickets >= maxWickets) {
       if (currentInnings === 1) {
         setFirstInningsScore(score);
         setFirstInningsWickets(newWickets);
@@ -592,6 +595,14 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
               <BarChart3 className="w-4 h-4 mr-2" />
               Scorecard
             </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setSpectatorMode(!spectatorMode)}
+              className={spectatorMode ? 'bg-primary text-primary-foreground' : ''}
+            >
+              {spectatorMode ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              {spectatorMode ? 'Exit Spectator' : 'Spectator Mode'}
+            </Button>
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold">{match.team1} vs {match.team2}</h1>
@@ -644,7 +655,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
               </div>
               
               {/* Only show non-striker if not out and there are batsmen remaining */}
-              {!nonStriker.isOut && (wickets < 9) && (
+              {!nonStriker.isOut && (wickets < (tournament.wickets - 1)) && (
                 <div className={`p-3 rounded ${nonStriker.isOnStrike ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                   <div className="flex justify-between items-center">
                     <span className="font-medium">{nonStriker.name}</span>
@@ -657,7 +668,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
               )}
               
               {/* Show "Last Man Standing" message when appropriate */}
-              {wickets >= 9 && (
+              {tournament.lastManStands && wickets >= (tournament.wickets - 1) && (
                 <div className="p-3 rounded bg-orange-100 text-orange-800 text-center">
                   <span className="font-medium">Last Man Standing</span>
                 </div>
@@ -674,8 +685,8 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
             </CardHeader>
             <CardContent>
               <div className="space-y-2 text-sm">
-                <div>Overs: 20</div>
-                <div>Max Wickets: 10</div>
+                <div>Overs: {tournament.overs}</div>
+                <div>Max Wickets: {tournament.wickets}</div>
                 <div>Current Bowler: {currentBowler || 'Not selected'}</div>
                 {currentInnings === 2 && (
                   <div className="text-primary font-semibold">
@@ -684,12 +695,12 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
                 )}
                 {currentInnings === 1 && (
                   <div className="text-muted-foreground">
-                    {Math.max(0, 20 - overs)} overs remaining
+                    {Math.max(0, tournament.overs - overs)} overs remaining
                   </div>
                 )}
                 {currentInnings === 2 && (
                   <div className="text-muted-foreground">
-                    Need {Math.max(0, firstInningsScore + 1 - score)} runs from {Math.max(0, (20 - overs) * 6 - (balls % 6))} balls
+                    Need {Math.max(0, firstInningsScore + 1 - score)} runs from {Math.max(0, (tournament.overs - overs) * 6 - (balls % 6))} balls
                   </div>
                 )}
               </div>
@@ -697,119 +708,151 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
           </Card>
         </div>
 
-        {/* Scoring Buttons */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Score</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {(showBatsmanSelect || !currentBowler) && (
-              <div className="bg-yellow-100 text-yellow-800 p-3 rounded-lg text-center">
-                {showBatsmanSelect ? 'Please select batsmen first' : 'Please select a bowler before scoring'}
+        {/* Scoring Buttons - Hidden in spectator mode */}
+        {!spectatorMode && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Score</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(showBatsmanSelect || !currentBowler) && (
+                <div className="bg-yellow-100 text-yellow-800 p-3 rounded-lg text-center">
+                  {showBatsmanSelect ? 'Please select batsmen first' : 'Please select a bowler before scoring'}
+                </div>
+              )}
+              {/* Run buttons */}
+              <div className="grid grid-cols-4 gap-3">
+                {[0, 1, 2, 3].map((runs) => (
+                  <Button
+                    key={runs}
+                    variant="outline"
+                    size="lg"
+                    onClick={() => updateScore(runs)}
+                    className="h-16 text-lg font-semibold"
+                    disabled={!currentBowler}
+                  >
+                    {runs}
+                  </Button>
+                ))}
               </div>
-            )}
-            {/* Run buttons */}
-            <div className="grid grid-cols-4 gap-3">
-              {[0, 1, 2, 3].map((runs) => (
+              
+              {/* Declared runs buttons */}
+              <div className="grid grid-cols-3 gap-3">
                 <Button
-                  key={runs}
                   variant="outline"
                   size="lg"
-                  onClick={() => updateScore(runs)}
+                  onClick={() => {
+                    const newScore = score + 1;
+                    setScore(newScore);
+                    // Don't change strike or update ball count for declared runs
+                  }}
                   className="h-16 text-lg font-semibold"
                   disabled={!currentBowler}
                 >
-                  {runs}
+                  Single (No Strike Change)
                 </Button>
-              ))}
-            </div>
-            
-            {/* Special buttons for 5 and declared runs */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => updateScore(5)}
-                className="h-16 text-lg font-semibold"
-                disabled={!currentBowler}
-              >
-                5 Runs
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={declareInnings}
-                className="h-16 text-lg font-semibold"
-                disabled={currentInnings === 2}
-              >
-                Declare
-              </Button>
-            </div>
-            
-            {/* Boundaries */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="default"
-                size="lg"
-                onClick={() => updateScore(4, true)}
-                className="h-16 text-lg font-semibold"
-                disabled={!currentBowler}
-              >
-                FOUR
-              </Button>
-              <Button
-                variant="default"
-                size="lg"
-                onClick={() => updateScore(6, true)}
-                className="h-16 text-lg font-semibold"
-                disabled={!currentBowler}
-              >
-                SIX
-              </Button>
-            </div>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => {
+                    const newScore = score + 2;
+                    setScore(newScore);
+                    // Don't change strike or update ball count for declared runs
+                  }}
+                  className="h-16 text-lg font-semibold"
+                  disabled={!currentBowler}
+                >
+                  Double (No Strike Change)
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={declareInnings}
+                  className="h-16 text-lg font-semibold"
+                  disabled={false}
+                >
+                  Declare
+                </Button>
+              </div>
+              
+              {/* Boundaries */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={() => updateScore(4, true)}
+                  className="h-16 text-lg font-semibold"
+                  disabled={!currentBowler}
+                >
+                  FOUR
+                </Button>
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={() => updateScore(6, true)}
+                  className="h-16 text-lg font-semibold"
+                  disabled={!currentBowler}
+                >
+                  SIX
+                </Button>
+              </div>
 
-            {/* Extras and Wicket */}
-            <div className="grid grid-cols-5 gap-3">
-              <Button
-                variant="outline"
-                onClick={() => updateScore(1, false, true)}
-                disabled={!currentBowler}
-              >
-                Wide
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => updateScore(1, false, true)}
-                disabled={!currentBowler}
-              >
-                No Ball
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => updateScore(1, false, true)}
-                disabled={!currentBowler}
-              >
-                Bye
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => updateScore(1, false, true)}
-                disabled={!currentBowler}
-              >
-                Leg Bye
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleWicket}
-                className="font-semibold"
-                disabled={!currentBowler}
-              >
-                <AlertTriangle className="w-4 h-4 mr-1" />
-                WICKET
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              {/* Extras and Wicket */}
+              <div className="grid grid-cols-5 gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => updateScore(1, false, true)}
+                  disabled={!currentBowler}
+                >
+                  Wide
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => updateScore(1, false, true)}
+                  disabled={!currentBowler}
+                >
+                  No Ball
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => updateScore(1, false, true)}
+                  disabled={!currentBowler}
+                >
+                  Bye
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => updateScore(1, false, true)}
+                  disabled={!currentBowler}
+                >
+                  Leg Bye
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleWicket}
+                  className="font-semibold"
+                  disabled={!currentBowler}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-1" />
+                  WICKET
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Spectator Mode Info */}
+        {spectatorMode && (
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardContent className="p-6 text-center">
+              <Eye className="w-12 h-12 text-blue-600 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">Spectator Mode Active</h3>
+              <p className="text-blue-700">
+                You're watching the match in read-only mode. Scoring controls are hidden.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Wicket Dialog */}
         <Dialog open={showWicketDialog} onOpenChange={setShowWicketDialog}>

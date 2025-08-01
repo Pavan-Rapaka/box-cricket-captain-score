@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Trophy, Users, Calendar as CalendarIcon, ArrowLeft, Target } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Trophy, Users, Calendar as CalendarIcon, ArrowLeft, Target, Clock, Award } from 'lucide-react';
 import { format as formatDate } from 'date-fns';
 import { Tournament, TournamentMatch } from '@/pages/Tournament';
 import PlayerInput from './PlayerInput';
@@ -24,6 +25,9 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
   const [teams, setTeams] = useState<string[]>(tournament?.teams || ['', '']);
   const [startDate, setStartDate] = useState<Date | undefined>(tournament?.startDate);
   const [players, setPlayers] = useState<Record<string, string[]>>(tournament?.players || {});
+  const [overs, setOvers] = useState(tournament?.overs || 20);
+  const [wickets, setWickets] = useState(tournament?.wickets || 10);
+  const [lastManStands, setLastManStands] = useState(tournament?.lastManStands || false);
 
   const addTeam = () => {
     setTeams(prev => [...prev, '']);
@@ -115,6 +119,9 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
       players,
       status: tournament?.status || 'setup',
       startDate,
+      overs,
+      wickets,
+      lastManStands,
       matches: isEditing ? tournament?.matches || [] : matches,
       pointsTable: isEditing ? tournament?.pointsTable || [] : validTeams.map(team => ({
         team,
@@ -205,6 +212,50 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Match Rules */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Match Rules
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="overs">Overs per innings</Label>
+              <Input
+                id="overs"
+                type="number"
+                min="1"
+                max="50"
+                value={overs}
+                onChange={(e) => setOvers(Number(e.target.value))}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="wickets">Wickets per innings</Label>
+              <Input
+                id="wickets"
+                type="number"
+                min="1"
+                max="15"
+                value={wickets}
+                onChange={(e) => setWickets(Number(e.target.value))}
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="lastman"
+                checked={lastManStands}
+                onCheckedChange={(checked) => setLastManStands(checked)}
+              />
+              <Label htmlFor="lastman">Last man stands rule</Label>
             </div>
           </CardContent>
         </Card>

@@ -20,6 +20,9 @@ export interface Tournament {
   status: 'setup' | 'ongoing' | 'completed';
   startDate: Date;
   endDate?: Date;
+  overs: number;
+  wickets: number;
+  lastManStands: boolean;
   matches: TournamentMatch[];
   pointsTable: TeamStanding[];
   fantasyPoints?: FantasyPoints[];
