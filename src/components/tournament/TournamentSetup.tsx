@@ -28,6 +28,8 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
   const [overs, setOvers] = useState(tournament?.overs || 20);
   const [wickets, setWickets] = useState(tournament?.wickets || 10);
   const [lastManStands, setLastManStands] = useState(tournament?.lastManStands || false);
+  const [entryFee, setEntryFee] = useState(tournament?.entryFee || 0);
+  const [requiresPayment, setRequiresPayment] = useState(tournament?.requiresPayment || false);
 
   const addTeam = () => {
     setTeams(prev => [...prev, '']);
@@ -122,6 +124,8 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
       overs,
       wickets,
       lastManStands,
+      entryFee,
+      requiresPayment,
       matches: isEditing ? tournament?.matches || [] : matches,
       pointsTable: isEditing ? tournament?.pointsTable || [] : validTeams.map(team => ({
         team,
@@ -257,6 +261,30 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
               />
               <Label htmlFor="lastman">Last man stands rule</Label>
             </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="payment"
+                checked={requiresPayment}
+                onCheckedChange={(checked) => setRequiresPayment(checked)}
+              />
+              <Label htmlFor="payment">Require entry payment</Label>
+            </div>
+            
+            {requiresPayment && (
+              <div>
+                <Label htmlFor="entryFee">Entry Fee (in your currency)</Label>
+                <Input
+                  id="entryFee"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={entryFee}
+                  onChange={(e) => setEntryFee(Number(e.target.value))}
+                  placeholder="Enter entry fee amount"
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 

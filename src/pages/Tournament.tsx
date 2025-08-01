@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Trophy, Users, Calendar, BarChart3, Settings, Plus, Home, Edit, Trash2 } from 'lucide-react';
 import TournamentSetup from '@/components/tournament/TournamentSetup';
 import TournamentDashboard from '@/components/tournament/TournamentDashboard';
+import TournamentPayment from '@/components/tournament/TournamentPayment';
 import PlayerStats from '@/components/tournament/PlayerStats';
 import MatchSchedule from '@/components/tournament/MatchSchedule';
 import PointsTable from '@/components/tournament/PointsTable';
@@ -23,6 +24,8 @@ export interface Tournament {
   overs: number;
   wickets: number;
   lastManStands: boolean;
+  entryFee: number;
+  requiresPayment: boolean;
   matches: TournamentMatch[];
   pointsTable: TeamStanding[];
   fantasyPoints?: FantasyPoints[];
@@ -70,9 +73,10 @@ export interface TeamStanding {
 
 const Tournament = () => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [currentView, setCurrentView] = useState<'list' | 'setup' | 'dashboard' | 'edit'>('list');
+  const [currentView, setCurrentView] = useState<'list' | 'setup' | 'dashboard' | 'edit' | 'payment'>('list');
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null);
+  const [paymentTournament, setPaymentTournament] = useState<Tournament | null>(null);
 
   const handleCreateTournament = (tournament: Tournament) => {
     setTournaments(prev => [...prev, tournament]);
@@ -99,6 +103,24 @@ const Tournament = () => {
     setTournaments(prev => prev.filter(t => t.id !== tournamentId));
   };
 
+  const handleJoinTournament = (tournament: Tournament) => {
+    if (tournament.requiresPayment) {
+      setPaymentTournament(tournament);
+      setCurrentView('payment');
+    } else {
+      setSelectedTournament(tournament);
+      setCurrentView('dashboard');
+    }
+  };
+
+  const handlePaymentComplete = () => {
+    if (paymentTournament) {
+      setSelectedTournament(paymentTournament);
+      setCurrentView('dashboard');
+      setPaymentTournament(null);
+    }
+  };
+
   if (currentView === 'setup') {
     return (
       <TournamentSetup 
@@ -115,6 +137,16 @@ const Tournament = () => {
         onCreateTournament={handleUpdateTournament}
         onCancel={() => setCurrentView('list')}
         isEditing={true}
+      />
+    );
+  }
+
+  if (currentView === 'payment' && paymentTournament) {
+    return (
+      <TournamentPayment
+        tournament={paymentTournament}
+        onPaymentComplete={handlePaymentComplete}
+        onCancel={() => setCurrentView('list')}
       />
     );
   }
@@ -233,6 +265,11 @@ const Tournament = () => {
                       <BarChart3 className="w-4 h-4" />
                       <span>{tournament.matches.filter(m => m.status === 'completed').length}/{tournament.matches.length} matches</span>
                     </div>
+                    {tournament.requiresPayment && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-semibold text-green-600">Entry Fee: ${tournament.entryFee}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2 mt-4">
                     <Button 
@@ -242,6 +279,21 @@ const Tournament = () => {
                     >
                       View Tournament
                     </Button>
+                    {tournament.requiresPayment ? (
+                      <Button 
+                        className="flex-1" 
+                        onClick={() => handleJoinTournament(tournament)}
+                      >
+                        Join (${tournament.entryFee})
+                      </Button>
+                    ) : (
+                      <Button 
+                        className="flex-1" 
+                        onClick={() => handleJoinTournament(tournament)}
+                      >
+                        Join Free
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

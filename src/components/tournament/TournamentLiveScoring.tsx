@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap, BarChart3, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap, BarChart3, Eye, EyeOff, Share2, Copy } from 'lucide-react';
 import { Tournament, TournamentMatch } from '@/pages/Tournament';
 import Scoreboard from '../Scoreboard';
 import { MatchConfig } from '../MatchSetup';
@@ -85,6 +85,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   const [wicketDetails, setWicketDetails] = useState<WicketDetails | null>(null);
   const [declared, setDeclared] = useState(false);
   const [spectatorMode, setSpectatorMode] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   
   // Score state
   const [score, setScore] = useState(0);
@@ -309,9 +310,28 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
     setAllPlayers(prev => [...prev, { ...striker, isOut: true, dismissalType, dismissedBy, fielder }]);
     setShowWicketDialog(false);
     
-    // Check if innings should end (based on tournament wickets)
+    // Check if innings should end
     const maxWickets = tournament.wickets || 10;
-    if (newWickets >= maxWickets) {
+    const currentPlayers = battingTeam === match.team1 ? team1Players : team2Players;
+    
+    // Check for last man standing rule
+    if (tournament.lastManStands && newWickets >= maxWickets - 1) {
+      // Last man standing - innings continues with one batsman
+      const availablePlayers = currentPlayers.filter((_, index) => index >= nextPlayerIndex);
+      if (availablePlayers.length > 0 && nextPlayerIndex < currentPlayers.length) {
+        setShowNewBatsmanSelect(true);
+      } else {
+        // No more players, innings ends
+        if (currentInnings === 1) {
+          setFirstInningsScore(score);
+          setFirstInningsWickets(newWickets);
+          setShowInningsBreak(true);
+        } else {
+          finishMatch();
+        }
+      }
+    } else if (newWickets >= maxWickets) {
+      // Regular wicket limit reached
       if (currentInnings === 1) {
         setFirstInningsScore(score);
         setFirstInningsWickets(newWickets);
@@ -320,9 +340,18 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
         finishMatch();
       }
     } else {
-      const currentPlayers = battingTeam === match.team1 ? team1Players : team2Players;
+      // Still have wickets left
       if (nextPlayerIndex < currentPlayers.length) {
         setShowNewBatsmanSelect(true);
+      } else {
+        // No more players available
+        if (currentInnings === 1) {
+          setFirstInningsScore(score);
+          setFirstInningsWickets(newWickets);
+          setShowInningsBreak(true);
+        } else {
+          finishMatch();
+        }
       }
     }
   };
@@ -603,6 +632,13 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
               {spectatorMode ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
               {spectatorMode ? 'Exit Spectator' : 'Spectator Mode'}
             </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowShareDialog(true)}
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Match
+            </Button>
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold">{match.team1} vs {match.team2}</h1>
@@ -654,8 +690,8 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
                 </div>
               </div>
               
-              {/* Only show non-striker if not out and there are batsmen remaining */}
-              {!nonStriker.isOut && (wickets < (tournament.wickets - 1)) && (
+              {/* Only show non-striker if not out and conditions allow */}
+              {!nonStriker.isOut && ((tournament.lastManStands && wickets < tournament.wickets) || (!tournament.lastManStands && wickets < (tournament.wickets - 1))) && (
                 <div className={`p-3 rounded ${nonStriker.isOnStrike ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                   <div className="flex justify-between items-center">
                     <span className="font-medium">{nonStriker.name}</span>
@@ -668,9 +704,10 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
               )}
               
               {/* Show "Last Man Standing" message when appropriate */}
-              {tournament.lastManStands && wickets >= (tournament.wickets - 1) && (
+              {tournament.lastManStands && wickets >= (tournament.wickets - 1) && !striker.isOut && (
                 <div className="p-3 rounded bg-orange-100 text-orange-800 text-center">
-                  <span className="font-medium">Last Man Standing</span>
+                  <span className="font-medium">🏏 Last Man Standing</span>
+                  <p className="text-sm mt-1">Single batsman continues</p>
                 </div>
               )}
             </CardContent>
@@ -1029,6 +1066,47 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
               >
                 Continue
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Share Match Dialog */}
+        <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Share2 className="w-5 h-5" />
+                Share Match with Spectators
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Share this link with spectators so they can watch the live match in read-only mode.
+              </p>
+              <div className="bg-muted p-3 rounded-lg">
+                <div className="flex items-center justify-between gap-2">
+                  <code className="text-sm flex-1 text-wrap break-all">
+                    {window.location.origin}/tournament?spectate={tournament.id}&match={match.id}
+                  </code>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/tournament?spectate=${tournament.id}&match=${match.id}`);
+                      // You could add a toast here
+                    }}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button 
+                  onClick={() => setShowShareDialog(false)}
+                  className="flex-1"
+                >
+                  Done
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
