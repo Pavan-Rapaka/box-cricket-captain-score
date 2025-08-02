@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap, Camera, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap, Camera, BarChart3, Eye, Share2 } from 'lucide-react';
 import { MatchConfig } from './MatchSetup';
 import Scoreboard from './Scoreboard';
 
@@ -91,6 +91,8 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [previousBowler, setPreviousBowler] = useState('');
   const [matchComplete, setMatchComplete] = useState(false);
   const [wicketDetails, setWicketDetails] = useState<WicketDetails | null>(null);
+  const [spectatorMode, setSpectatorMode] = useState(false);
+  const [shareableLink, setShareableLink] = useState('');
   
   // Score state
   const [score, setScore] = useState(0);
@@ -134,6 +136,18 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   // Store first innings data
   const [firstInningsPlayers, setFirstInningsPlayers] = useState<Player[]>([]);
   const [firstInningsBowlers, setFirstInningsBowlers] = useState<BowlerStats[]>([]);
+
+  // Generate shareable link for spectators
+  const generateShareableLink = () => {
+    const baseUrl = window.location.origin;
+    const spectateUrl = `${baseUrl}/?spectate=true&match=${Date.now()}`;
+    setShareableLink(spectateUrl);
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(spectateUrl).then(() => {
+      alert('Spectate link copied to clipboard!');
+    });
+  };
 
   const updateScore = (runs: number, isBoundary = false, isExtra = false) => {
     // Prevent scoring if batsmen or bowler not selected
@@ -557,6 +571,14 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
               <BarChart3 className="w-4 h-4 mr-2" />
               Scorecard
             </Button>
+            <Button variant="outline" onClick={() => setSpectatorMode(!spectatorMode)}>
+              <Eye className="w-4 h-4 mr-2" />
+              {spectatorMode ? 'Exit Spectator' : 'Spectator Mode'}
+            </Button>
+            <Button variant="outline" onClick={generateShareableLink}>
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Live Match
+            </Button>
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold">{matchConfig.team1Name} vs {matchConfig.team2Name}</h1>
@@ -675,89 +697,105 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
         </div>
 
         {/* Scoring Buttons */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Score</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {(showBatsmanSelect || !currentBowler) && (
-              <div className="bg-yellow-100 text-yellow-800 p-3 rounded-lg text-center">
-                {showBatsmanSelect ? 'Please select batsmen first' : 'Please select a bowler before scoring'}
+        {!spectatorMode && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Score</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(showBatsmanSelect || !currentBowler) && (
+                <div className="bg-yellow-100 text-yellow-800 p-3 rounded-lg text-center">
+                  {showBatsmanSelect ? 'Please select batsmen first' : 'Please select a bowler before scoring'}
+                </div>
+              )}
+              {/* Run buttons */}
+              <div className="grid grid-cols-4 gap-3">
+                {[0, 1, 2, 3].map((runs) => (
+                  <Button
+                    key={runs}
+                    variant="outline"
+                    size="lg"
+                    onClick={() => updateScore(runs)}
+                    className="h-16 text-lg font-semibold"
+                    disabled={!currentBowler}
+                  >
+                    {runs}
+                  </Button>
+                ))}
               </div>
-            )}
-            {/* Run buttons */}
-            <div className="grid grid-cols-4 gap-3">
-              {[0, 1, 2, 3].map((runs) => (
+              
+              {/* Boundaries */}
+              <div className="grid grid-cols-2 gap-3">
                 <Button
-                  key={runs}
-                  variant="outline"
+                  variant="default"
                   size="lg"
-                  onClick={() => updateScore(runs)}
+                  onClick={() => updateScore(4, true)}
                   className="h-16 text-lg font-semibold"
                   disabled={!currentBowler}
                 >
-                  {runs}
+                  FOUR
                 </Button>
-              ))}
-            </div>
-            
-            {/* Boundaries */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="default"
-                size="lg"
-                onClick={() => updateScore(4, true)}
-                className="h-16 text-lg font-semibold"
-                disabled={!currentBowler}
-              >
-                FOUR
-              </Button>
-              <Button
-                variant="default"
-                size="lg"
-                onClick={() => updateScore(6, true)}
-                className="h-16 text-lg font-semibold"
-                disabled={!currentBowler}
-              >
-                SIX
-              </Button>
-            </div>
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={() => updateScore(6, true)}
+                  className="h-16 text-lg font-semibold"
+                  disabled={!currentBowler}
+                >
+                  SIX
+                </Button>
+              </div>
 
-            {/* Extras and Wicket */}
-            <div className="grid grid-cols-4 gap-3">
-              <Button
-                variant="outline"
-                onClick={() => updateScore(1, false, true)}
-                disabled={!currentBowler}
-              >
-                Wide
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => updateScore(1, false, true)}
-                disabled={!currentBowler}
-              >
-                No Ball
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => updateScore(1, false, true)}
-                disabled={!currentBowler}
-              >
-                Bye
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleWicket}
-                className="font-semibold"
-                disabled={!currentBowler}
-              >
-                <AlertTriangle className="w-4 h-4 mr-1" />
-                WICKET
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              {/* Extras and Wicket */}
+              <div className="grid grid-cols-4 gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => updateScore(1, false, true)}
+                  disabled={!currentBowler}
+                >
+                  Wide
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => updateScore(1, false, true)}
+                  disabled={!currentBowler}
+                >
+                  No Ball
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => updateScore(1, false, true)}
+                  disabled={!currentBowler}
+                >
+                  Bye
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleWicket}
+                  className="font-semibold"
+                  disabled={!currentBowler}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-1" />
+                  WICKET
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Spectator Mode Info */}
+        {spectatorMode && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-center">Spectator Mode</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center text-muted-foreground">
+                You are viewing this match as a spectator. Scoring controls are hidden.
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Wicket Dialog */}
         <Dialog open={showWicketDialog} onOpenChange={setShowWicketDialog}>

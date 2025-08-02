@@ -120,6 +120,20 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   const [bowlerStats, setBowlerStats] = useState<BowlerStats[]>([]);
   const [fantasyPoints, setFantasyPoints] = useState<FantasyPoints[]>([]);
   
+  // Generate shareable link for spectators
+  const generateShareableLink = () => {
+    const baseUrl = window.location.origin;
+    const spectateUrl = `${baseUrl}/tournament?spectate=${tournament.id}&match=${match.id}`;
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(spectateUrl).then(() => {
+      alert('Spectate link copied to clipboard!');
+    }).catch(() => {
+      // Fallback for older browsers
+      setShowShareDialog(true);
+    });
+  };
+  
   // Fantasy points calculation
   const calculateFantasyPoints = (player: Player, isWicketkeeper = false): number => {
     let points = 0;
@@ -310,28 +324,14 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
     setAllPlayers(prev => [...prev, { ...striker, isOut: true, dismissalType, dismissedBy, fielder }]);
     setShowWicketDialog(false);
     
-    // Check if innings should end
-    const maxWickets = tournament.wickets || 10;
+    // Check if innings should end - use tournament wickets logic same as single match
     const currentPlayers = battingTeam === match.team1 ? team1Players : team2Players;
+    const maxWickets = tournament.lastManStands 
+      ? currentPlayers.length  // Last man stands: all players can get out
+      : currentPlayers.length - 1;  // Regular: all but one can get out
     
-    // Check for last man standing rule
-    if (tournament.lastManStands && newWickets >= maxWickets - 1) {
-      // Last man standing - innings continues with one batsman
-      const availablePlayers = currentPlayers.filter((_, index) => index >= nextPlayerIndex);
-      if (availablePlayers.length > 0 && nextPlayerIndex < currentPlayers.length) {
-        setShowNewBatsmanSelect(true);
-      } else {
-        // No more players, innings ends
-        if (currentInnings === 1) {
-          setFirstInningsScore(score);
-          setFirstInningsWickets(newWickets);
-          setShowInningsBreak(true);
-        } else {
-          finishMatch();
-        }
-      }
-    } else if (newWickets >= maxWickets) {
-      // Regular wicket limit reached
+    if (newWickets >= maxWickets) {
+      // Innings ends
       if (currentInnings === 1) {
         setFirstInningsScore(score);
         setFirstInningsWickets(newWickets);
@@ -340,11 +340,12 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
         finishMatch();
       }
     } else {
-      // Still have wickets left
-      if (nextPlayerIndex < currentPlayers.length) {
-        setShowNewBatsmanSelect(true);
-      } else {
-        // No more players available
+      // Check if this is the last batsman (only 1 remaining)
+      const remainingPlayers = currentPlayers.length - newWickets - 1; // -1 for non-striker still batting
+      
+      // Last man stands logic: end innings only when all but one player are out
+      if (tournament.lastManStands && remainingPlayers <= 0) {
+        // Last man standing - end innings immediately
         if (currentInnings === 1) {
           setFirstInningsScore(score);
           setFirstInningsWickets(newWickets);
@@ -352,6 +353,17 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
         } else {
           finishMatch();
         }
+      } else if (!tournament.lastManStands && remainingPlayers <= 0) {
+        // Standard cricket: last partnership broken, end innings
+        if (currentInnings === 1) {
+          setFirstInningsScore(score);
+          setFirstInningsWickets(newWickets);
+          setShowInningsBreak(true);
+        } else {
+          finishMatch();
+        }
+      } else if (nextPlayerIndex < currentPlayers.length) {
+        setShowNewBatsmanSelect(true);
       }
     }
   };

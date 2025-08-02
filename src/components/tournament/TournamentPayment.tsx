@@ -76,7 +76,7 @@ const TournamentPayment = ({ tournament, onPaymentComplete, onCancel }: Tourname
           <CardContent className="space-y-4">
             <div className="bg-muted p-4 rounded-lg text-center">
               <p className="text-sm text-muted-foreground">Entry Fee</p>
-              <p className="text-2xl font-bold">${tournament.entryFee}</p>
+              <p className="text-2xl font-bold">₹{tournament.entryFee}</p>
             </div>
 
             {/* Player Details */}
@@ -192,7 +192,7 @@ const TournamentPayment = ({ tournament, onPaymentComplete, onCancel }: Tourname
                 disabled={processing || !playerName || !email}
                 className="flex-1"
               >
-                {processing ? 'Processing...' : `Pay $${tournament.entryFee}`}
+                {processing ? 'Processing...' : `Pay ₹${tournament.entryFee}`}
               </Button>
             </div>
           </CardContent>
