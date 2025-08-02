@@ -26,10 +26,9 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
   const [startDate, setStartDate] = useState<Date | undefined>(tournament?.startDate);
   const [players, setPlayers] = useState<Record<string, string[]>>(tournament?.players || {});
   const [overs, setOvers] = useState(tournament?.overs || 20);
-  const [wickets, setWickets] = useState(tournament?.wickets || 10);
+  const [playersPerTeam, setPlayersPerTeam] = useState(tournament?.playersPerTeam || 11);
   const [lastManStands, setLastManStands] = useState(tournament?.lastManStands || false);
-  const [entryFee, setEntryFee] = useState(tournament?.entryFee || 0);
-  const [requiresPayment, setRequiresPayment] = useState(tournament?.requiresPayment || false);
+  const [entryFee, setEntryFee] = useState(tournament?.entryFee || 100);
 
   const addTeam = () => {
     setTeams(prev => [...prev, '']);
@@ -122,10 +121,11 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
       status: tournament?.status || 'setup',
       startDate,
       overs,
-      wickets,
+      playersPerTeam,
+      wickets: lastManStands ? playersPerTeam : playersPerTeam - 1,
       lastManStands,
       entryFee,
-      requiresPayment,
+      requiresPayment: true, // Always require payment for tournaments
       matches: isEditing ? tournament?.matches || [] : matches,
       pointsTable: isEditing ? tournament?.pointsTable || [] : validTeams.map(team => ({
         team,
@@ -242,14 +242,14 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
             </div>
             
             <div>
-              <Label htmlFor="wickets">Wickets per innings</Label>
+              <Label htmlFor="playersPerTeam">Players per team</Label>
               <Input
-                id="wickets"
+                id="playersPerTeam"
                 type="number"
-                min="1"
+                min="2"
                 max="15"
-                value={wickets}
-                onChange={(e) => setWickets(Number(e.target.value))}
+                value={playersPerTeam}
+                onChange={(e) => setPlayersPerTeam(Number(e.target.value))}
               />
             </div>
             
@@ -262,29 +262,20 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
               <Label htmlFor="lastman">Last man stands rule</Label>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="payment"
-                checked={requiresPayment}
-                onCheckedChange={(checked) => setRequiresPayment(checked)}
+            <div>
+              <Label htmlFor="entryFee">Entry Fee (₹)</Label>
+              <Input
+                id="entryFee"
+                type="number"
+                min="1"
+                value={entryFee}
+                onChange={(e) => setEntryFee(Number(e.target.value))}
+                placeholder="Entry fee for the tournament"
               />
-              <Label htmlFor="payment">Require entry payment</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Payment required for all tournament participants
+              </p>
             </div>
-            
-            {requiresPayment && (
-              <div>
-                <Label htmlFor="entryFee">Entry Fee (in your currency)</Label>
-                <Input
-                  id="entryFee"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={entryFee}
-                  onChange={(e) => setEntryFee(Number(e.target.value))}
-                  placeholder="Enter entry fee amount"
-                />
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -323,6 +314,7 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
                       teamName={team}
                       players={players[team] || []}
                       onUpdatePlayers={updatePlayers}
+                      maxPlayers={playersPerTeam}
                     />
                   </div>
                 )}

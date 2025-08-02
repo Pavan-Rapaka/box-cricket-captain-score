@@ -22,6 +22,7 @@ export interface Tournament {
   startDate: Date;
   endDate?: Date;
   overs: number;
+  playersPerTeam: number;
   wickets: number;
   lastManStands: boolean;
   entryFee: number;

@@ -8,13 +8,15 @@ interface PlayerInputProps {
   teamName: string;
   players: string[];
   onUpdatePlayers: (teamName: string, players: string[]) => void;
+  maxPlayers?: number;
 }
 
-const PlayerInput = ({ teamName, players, onUpdatePlayers }: PlayerInputProps) => {
+const PlayerInput = ({ teamName, players, onUpdatePlayers, maxPlayers }: PlayerInputProps) => {
   const [newPlayer, setNewPlayer] = useState('');
 
   const addPlayer = () => {
-    if (newPlayer.trim() && !players.includes(newPlayer.trim())) {
+    if (newPlayer.trim() && !players.includes(newPlayer.trim()) && 
+        (!maxPlayers || players.length < maxPlayers)) {
       onUpdatePlayers(teamName, [...players, newPlayer.trim()]);
       setNewPlayer('');
     }
@@ -44,7 +46,8 @@ const PlayerInput = ({ teamName, players, onUpdatePlayers }: PlayerInputProps) =
         <Button 
           size="sm" 
           onClick={addPlayer}
-          disabled={!newPlayer.trim() || players.includes(newPlayer.trim())}
+          disabled={!newPlayer.trim() || players.includes(newPlayer.trim()) || 
+                   (maxPlayers && players.length >= maxPlayers)}
         >
           <Plus className="w-3 h-3" />
         </Button>
@@ -70,6 +73,7 @@ const PlayerInput = ({ teamName, players, onUpdatePlayers }: PlayerInputProps) =
       
       <p className="text-xs text-muted-foreground">
         {players.length} player{players.length !== 1 ? 's' : ''} added
+        {maxPlayers && ` (max ${maxPlayers})`}
       </p>
     </div>
   );

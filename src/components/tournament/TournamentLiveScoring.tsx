@@ -8,6 +8,7 @@ import { ArrowLeft, Trophy, Target, Users, AlertTriangle, Zap, BarChart3, Eye, E
 import { Tournament, TournamentMatch } from '@/pages/Tournament';
 import Scoreboard from '../Scoreboard';
 import { MatchConfig } from '../MatchSetup';
+import InGamePlayerManagement from './InGamePlayerManagement';
 
 interface Player {
   name: string;
@@ -87,6 +88,15 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   const [spectatorMode, setSpectatorMode] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   
+  // Function to update players during the game
+  const updateTeamPlayers = (team: string, players: string[]) => {
+    if (team === match.team1) {
+      setTeam1Players(players);
+    } else {
+      setTeam2Players(players);
+    }
+  };
+  
   // Score state
   const [score, setScore] = useState(0);
   const [wickets, setWickets] = useState(0);
@@ -102,8 +112,8 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   const [firstInningsBowlers, setFirstInningsBowlers] = useState<BowlerStats[]>([]);
 
   // Player state
-  const team1Players = tournament.players[match.team1] || [];
-  const team2Players = tournament.players[match.team2] || [];
+  const [team1Players, setTeam1Players] = useState<string[]>(tournament.players[match.team1] || []);
+  const [team2Players, setTeam2Players] = useState<string[]>(tournament.players[match.team2] || []);
   
   const [striker, setStriker] = useState<Player>({
     name: team1Players[0] || 'Player 1',
@@ -327,8 +337,8 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
     // Check if innings should end - use tournament wickets logic same as single match
     const currentPlayers = battingTeam === match.team1 ? team1Players : team2Players;
     const maxWickets = tournament.lastManStands 
-      ? currentPlayers.length  // Last man stands: all players can get out
-      : currentPlayers.length - 1;  // Regular: all but one can get out
+      ? tournament.playersPerTeam  // Last man stands: all players can get out
+      : tournament.playersPerTeam - 1;  // Regular: all but one can get out
     
     if (newWickets >= maxWickets) {
       // Innings ends
@@ -340,29 +350,11 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
         finishMatch();
       }
     } else {
-      // Check if this is the last batsman (only 1 remaining)
-      const remainingPlayers = currentPlayers.length - newWickets - 1; // -1 for non-striker still batting
+      // Check if this is the last batsman
+      const remainingPlayers = tournament.playersPerTeam - newWickets - 1; // -1 for non-striker still batting
       
-      // Last man stands logic: end innings only when all but one player are out
-      if (tournament.lastManStands && remainingPlayers <= 0) {
-        // Last man standing - end innings immediately
-        if (currentInnings === 1) {
-          setFirstInningsScore(score);
-          setFirstInningsWickets(newWickets);
-          setShowInningsBreak(true);
-        } else {
-          finishMatch();
-        }
-      } else if (!tournament.lastManStands && remainingPlayers <= 0) {
-        // Standard cricket: last partnership broken, end innings
-        if (currentInnings === 1) {
-          setFirstInningsScore(score);
-          setFirstInningsWickets(newWickets);
-          setShowInningsBreak(true);
-        } else {
-          finishMatch();
-        }
-      } else if (nextPlayerIndex < currentPlayers.length) {
+      // Only select new batsman if there are players available
+      if (remainingPlayers > 0 && nextPlayerIndex < currentPlayers.length) {
         setShowNewBatsmanSelect(true);
       }
     }
@@ -813,15 +805,15 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
                 >
                   Double (No Strike Change)
                 </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={declareInnings}
-                  className="h-16 text-lg font-semibold"
-                  disabled={false}
-                >
-                  Declare
-                </Button>
+                 <Button
+                   variant="outline"
+                   size="lg"
+                   onClick={declareInnings}
+                   className="h-16 text-lg font-semibold"
+                   disabled={currentInnings === 2}
+                 >
+                   Declare
+                 </Button>
               </div>
               
               {/* Boundaries */}
@@ -886,6 +878,28 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
                   WICKET
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* In-Game Player Management */}
+        {!spectatorMode && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Player Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <InGamePlayerManagement
+                team1={match.team1}
+                team2={match.team2}
+                team1Players={team1Players}
+                team2Players={team2Players}
+                onUpdatePlayers={updateTeamPlayers}
+                maxPlayersPerTeam={tournament.playersPerTeam}
+              />
             </CardContent>
           </Card>
         )}
