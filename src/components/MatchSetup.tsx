@@ -41,8 +41,8 @@ const MatchSetup = ({ onStartMatch, onBack }: MatchSetupProps) => {
     lastManStands: false,
     team1Name: '',
     team2Name: '',
-    team1Players: [''],
-    team2Players: [''],
+    team1Players: ['', ''],
+    team2Players: ['', ''],
     team1Captain: '',
     team2Captain: '',
     tossWinner: '',
@@ -210,15 +210,40 @@ const MatchSetup = ({ onStartMatch, onBack }: MatchSetupProps) => {
           </CardContent>
         </Card>
 
-        {/* Match Rules */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Match Rules
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+         {/* Match Rules */}
+         <Card className="mb-6">
+           <CardHeader>
+             <CardTitle className="flex items-center gap-2">
+               <Clock className="w-5 h-5" />
+               Match Rules
+             </CardTitle>
+           </CardHeader>
+           <CardContent className="space-y-4">
+             <div>
+               <Label htmlFor="playersPerTeam">Players per team</Label>
+               <Select onValueChange={(v) => {
+                 const n = Number(v);
+                 // Resize both teams' arrays to n
+                 setConfig(prev => ({
+                   ...prev,
+                   team1Players: Array.from({ length: n }, (_, i) => prev.team1Players[i] || ''),
+                   team2Players: Array.from({ length: n }, (_, i) => prev.team2Players[i] || ''),
+                 }));
+                 setTimeout(updateWickets, 0);
+               }}>
+                 <SelectTrigger>
+                   <SelectValue placeholder={`${Math.min(config.team1Players.length, config.team2Players.length)} players`} />
+                 </SelectTrigger>
+                 <SelectContent>
+                   {[...Array(14)].map((_, idx) => {
+                     const val = idx + 2; // 2..15
+                     return (
+                       <SelectItem key={val} value={String(val)}>{val}</SelectItem>
+                     );
+                   })}
+                 </SelectContent>
+               </Select>
+             </div>
             <div>
               <Label htmlFor="overs">
                 {config.format === 'Super Over' ? 'Balls per over' : 'Overs per innings'}
@@ -332,14 +357,7 @@ const MatchSetup = ({ onStartMatch, onBack }: MatchSetupProps) => {
                     className="mt-2"
                   />
                 ))}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addPlayer('team1')}
-                  className="mt-2 w-full"
-                >
-                  Add Player
-                </Button>
+                {/* Adding players is controlled by the "Players per team" selector */}
               </div>
 
               <div>
@@ -390,14 +408,7 @@ const MatchSetup = ({ onStartMatch, onBack }: MatchSetupProps) => {
                     className="mt-2"
                   />
                 ))}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addPlayer('team2')}
-                  className="mt-2 w-full"
-                >
-                  Add Player
-                </Button>
+                {/* Adding players is controlled by the "Players per team" selector */}
               </div>
 
               <div>

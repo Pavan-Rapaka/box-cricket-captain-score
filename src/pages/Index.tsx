@@ -22,13 +22,41 @@ const Index = () => {
     setCurrentView('home');
     setMatchConfig(null);
   };
-
   useEffect(() => {
     if (isSpectateMode && matchId) {
-      // In spectate mode, show a message or load spectate view
-      setCurrentView('home'); // For now, redirect to home with spectate info
+      const cfg = searchParams.get('cfg');
+      if (cfg) {
+        try {
+          const json = JSON.parse(decodeURIComponent(atob(cfg)));
+          // Build MatchConfig from payload
+          const payload = json as Partial<MatchConfig>;
+          const builtConfig: MatchConfig = {
+            format: (payload.format as any) || 'T20',
+            overs: payload.overs || 20,
+            wickets: payload.lastManStands
+              ? Math.min(payload.team1Players?.length || 10, payload.team2Players?.length || 10)
+              : Math.max(1, Math.min(payload.team1Players?.length || 10, payload.team2Players?.length || 10) - 1),
+            lastManStands: !!payload.lastManStands,
+            team1Name: payload.team1Name || 'Team 1',
+            team2Name: payload.team2Name || 'Team 2',
+            team1Players: payload.team1Players || [],
+            team2Players: payload.team2Players || [],
+            team1Captain: payload.team1Captain || (payload.team1Players?.[0] || ''),
+            team2Captain: payload.team2Captain || (payload.team2Players?.[0] || ''),
+            tossWinner: payload.firstBatting || (payload.team1Name || 'Team 1'),
+            firstBatting: payload.firstBatting || (payload.team1Name || 'Team 1'),
+            innings: 2,
+            daysPlanned: 5,
+            followOnMargin: 200,
+          };
+          setMatchConfig(builtConfig);
+          setCurrentView('scoring');
+        } catch (e) {
+          console.error('Invalid spectate payload');
+        }
+      }
     }
-  }, [isSpectateMode, matchId]);
+  }, [isSpectateMode, matchId, searchParams]);
 
   if (currentView === 'setup') {
     return <MatchSetup onStartMatch={handleStartMatch} onBack={() => setCurrentView('home')} />;
@@ -36,23 +64,6 @@ const Index = () => {
 
   if (currentView === 'scoring' && matchConfig) {
     return <LiveScoring matchConfig={matchConfig} onEndMatch={handleEndMatch} isSpectateMode={isSpectateMode} />;
-  }
-
-  if (isSpectateMode && matchId) {
-    return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-2xl mx-auto text-center space-y-6">
-          <Trophy className="w-16 h-16 text-cricket-gold mx-auto" />
-          <h1 className="text-2xl font-bold">Match Spectate Mode</h1>
-          <p className="text-muted-foreground">
-            This match is being shared with you. Wait for the match to start or contact the organizer.
-          </p>
-          <Button onClick={() => window.location.href = '/'}>
-            Go to Home
-          </Button>
-        </div>
-      </div>
-    );
   }
 
   // Home page with navigation

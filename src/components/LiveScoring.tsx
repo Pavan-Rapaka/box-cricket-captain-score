@@ -105,6 +105,14 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
   const [firstInningsScore, setFirstInningsScore] = useState(0);
   const [firstInningsWickets, setFirstInningsWickets] = useState(0);
 
+  // Dynamic max wickets based on current batting team and last-man-stands
+  const maxWickets = Math.max(
+    1,
+    (battingTeam === matchConfig.team1Name
+      ? matchConfig.team1Players.length
+      : matchConfig.team2Players.length) - (matchConfig.lastManStands ? 0 : 1)
+  );
+
   // Player state
   const [striker, setStriker] = useState<Player>({
     name: matchConfig.firstBatting === matchConfig.team1Name 
@@ -138,14 +146,29 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
   const [firstInningsPlayers, setFirstInningsPlayers] = useState<Player[]>([]);
   const [firstInningsBowlers, setFirstInningsBowlers] = useState<BowlerStats[]>([]);
 
-  // Generate shareable link for spectators
+  // Generate shareable link for spectators (embed config for cross-device viewing)
   const generateShareableLink = () => {
     const baseUrl = window.location.origin;
     const matchId = `match-${Date.now()}`;
-    const spectateUrl = `${baseUrl}/spectate/${matchId}`;
+
+    // Minimal config payload for spectators
+    const payload = {
+      format: matchConfig.format,
+      overs: matchConfig.overs,
+      lastManStands: matchConfig.lastManStands,
+      team1Name: matchConfig.team1Name,
+      team2Name: matchConfig.team2Name,
+      team1Players: matchConfig.team1Players,
+      team2Players: matchConfig.team2Players,
+      team1Captain: matchConfig.team1Captain,
+      team2Captain: matchConfig.team2Captain,
+      firstBatting: matchConfig.firstBatting,
+    };
+    const cfg = btoa(encodeURIComponent(JSON.stringify(payload)));
+
+    const spectateUrl = `${baseUrl}/spectate/${matchId}?cfg=${cfg}`;
     setShareableLink(spectateUrl);
-    
-    // Copy to clipboard
+
     navigator.clipboard.writeText(spectateUrl).then(() => {
       alert('Spectate link copied to clipboard!');
     });
@@ -294,7 +317,7 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
     setShowWicketDialog(false);
     
     // Check if innings should end
-    if (newWickets >= matchConfig.wickets) {
+    if (newWickets >= maxWickets) {
       if (isSuperOver) {
         handleSuperOverComplete();
       } else if (currentInnings === 1) {
@@ -508,8 +531,8 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
     const opponentTeam = battingTeam === matchConfig.team1Name ? matchConfig.team2Name : matchConfig.team1Name;
     
     if (score >= target) {
-      return `${currentTeam} wins by ${matchConfig.wickets - wickets} wickets!`;
-    } else if (overs >= matchConfig.overs || wickets >= matchConfig.wickets) {
+      return `${currentTeam} wins by ${maxWickets - wickets} wickets!`;
+    } else if (overs >= matchConfig.overs || wickets >= maxWickets) {
       const margin = firstInningsScore - score;
       return `${opponentTeam} wins by ${margin} runs!`;
     }
@@ -645,7 +668,7 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
               </div>
               
               {/* Only show non-striker if not out and there are batsmen remaining */}
-              {!nonStriker.isOut && (wickets < matchConfig.wickets - 1) && (
+              {!nonStriker.isOut && (wickets < maxWickets - 1) && (
                 <div className={`p-3 rounded ${nonStriker.isOnStrike ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                   <div className="flex justify-between items-center">
                     <span className="font-medium">{nonStriker.name}</span>
@@ -658,7 +681,7 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
               )}
               
               {/* Show "Last Man Standing" message when appropriate */}
-              {wickets >= matchConfig.wickets - 1 && (
+              {wickets >= maxWickets - 1 && (
                 <div className="p-3 rounded bg-orange-100 text-orange-800 text-center">
                   <span className="font-medium">Last Man Standing</span>
                 </div>
@@ -676,7 +699,7 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
             <CardContent>
               <div className="space-y-2 text-sm">
                 <div>Overs: {matchConfig.overs}</div>
-                <div>Max Wickets: {matchConfig.wickets}</div>
+                <div>Max Wickets: {maxWickets}</div>
                 <div>Current Bowler: {currentBowler || 'Not selected'}</div>
                 {currentInnings === 2 && (
                   <div className="text-primary font-semibold">

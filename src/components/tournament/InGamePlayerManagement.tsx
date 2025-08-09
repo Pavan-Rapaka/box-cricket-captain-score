@@ -25,29 +25,54 @@ const InGamePlayerManagement = ({
   const [showManageDialog, setShowManageDialog] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<string>('');
   const [newPlayerName, setNewPlayerName] = useState('');
+  const [addAsCommon, setAddAsCommon] = useState(false);
 
   const getTeamPlayers = (team: string) => {
     return team === team1 ? team1Players : team2Players;
   };
 
   const addPlayer = () => {
-    if (!newPlayerName.trim() || !selectedTeam) return;
-    
+    const name = newPlayerName.trim();
+    if (!name || !selectedTeam) return;
+
+    const otherTeam = selectedTeam === team1 ? team2 : team1;
     const currentPlayers = getTeamPlayers(selectedTeam);
-    if (currentPlayers.length >= maxPlayersPerTeam) return;
-    
-    if (!currentPlayers.includes(newPlayerName.trim())) {
-      onUpdatePlayers(selectedTeam, [...currentPlayers, newPlayerName.trim()]);
-      setNewPlayerName('');
+    const otherPlayers = getTeamPlayers(otherTeam);
+
+    // Enforce max per team
+    if (currentPlayers.length >= maxPlayersPerTeam || otherPlayers.length >= maxPlayersPerTeam) return;
+
+    // Common player: add to both teams (keeps counts equal)
+    if (addAsCommon) {
+      if (!currentPlayers.includes(name) && !otherPlayers.includes(name)) {
+        onUpdatePlayers(selectedTeam, [...currentPlayers, name]);
+        onUpdatePlayers(otherTeam, [...otherPlayers, name]);
+        setNewPlayerName('');
+      }
+      return;
+    }
+
+    // Non-common: only allow adding to the team that currently has fewer players
+    if (currentPlayers.length < otherPlayers.length) {
+      if (!currentPlayers.includes(name)) {
+        onUpdatePlayers(selectedTeam, [...currentPlayers, name]);
+        setNewPlayerName('');
+      }
     }
   };
 
   const removePlayer = (team: string, playerName: string) => {
     const currentPlayers = getTeamPlayers(team);
+    const otherTeam = team === team1 ? team2 : team1;
+    const otherPlayers = getTeamPlayers(otherTeam);
+
     // Don't allow removing if team has minimum players (2)
     if (currentPlayers.length <= 2) return;
-    
-    onUpdatePlayers(team, currentPlayers.filter(p => p !== playerName));
+
+    // Only allow removal if this team currently has more players than the other (to keep counts equal)
+    if (currentPlayers.length > otherPlayers.length) {
+      onUpdatePlayers(team, currentPlayers.filter(p => p !== playerName));
+    }
   };
 
   const openManageDialog = (team: string) => {
@@ -84,24 +109,36 @@ const InGamePlayerManagement = ({
           <div className="space-y-4">
             {/* Add Player */}
             <div className="space-y-2">
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <Input
                   placeholder="Enter player name"
                   value={newPlayerName}
                   onChange={(e) => setNewPlayerName(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addPlayer()}
+                  onKeyDown={(e) => e.key === 'Enter' && addPlayer()}
                 />
                 <Button 
                   size="sm" 
                   onClick={addPlayer}
-                  disabled={!newPlayerName.trim() || getTeamPlayers(selectedTeam).length >= maxPlayersPerTeam}
+                  disabled={
+                    !newPlayerName.trim() ||
+                    // Disable if exceeding limits
+                    getTeamPlayers(selectedTeam).length >= maxPlayersPerTeam ||
+                    // When not adding as common, only allow adding to the smaller team
+                    (!addAsCommon && selectedTeam && getTeamPlayers(selectedTeam).length >= getTeamPlayers(selectedTeam === team1 ? team2 : team1).length)
+                  }
                 >
                   <Plus className="w-3 h-3" />
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {getTeamPlayers(selectedTeam).length}/{maxPlayersPerTeam} players
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {getTeamPlayers(selectedTeam).length}/{maxPlayersPerTeam} players
+                </p>
+                <div className="flex items-center gap-2 text-xs">
+                  <input id="common-player" type="checkbox" checked={addAsCommon} onChange={(e) => setAddAsCommon(e.target.checked)} />
+                  <label htmlFor="common-player">Add as common player (both teams)</label>
+                </div>
+              </div>
             </div>
 
             {/* Current Players */}
