@@ -133,7 +133,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   // Generate shareable link for spectators
   const generateShareableLink = () => {
     const baseUrl = window.location.origin;
-    const spectateUrl = `${baseUrl}/tournament?spectate=${tournament.id}&match=${match.id}`;
+    const spectateUrl = `${baseUrl}/tournament/spectate/${tournament.id}/${match.id}`;
     
     // Copy to clipboard
     navigator.clipboard.writeText(spectateUrl).then(() => {
@@ -1112,12 +1112,12 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
               <div className="bg-muted p-3 rounded-lg">
                 <div className="flex items-center justify-between gap-2">
                   <code className="text-sm flex-1 text-wrap break-all">
-                    {window.location.origin}/tournament?spectate={tournament.id}&match={match.id}
+                    {window.location.origin}/tournament/spectate/{tournament.id}/{match.id}
                   </code>
                   <Button
                     size="sm"
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/tournament?spectate=${tournament.id}&match=${match.id}`);
+                      navigator.clipboard.writeText(`${window.location.origin}/tournament/spectate/${tournament.id}/${match.id}`);
                       // You could add a toast here
                     }}
                   >

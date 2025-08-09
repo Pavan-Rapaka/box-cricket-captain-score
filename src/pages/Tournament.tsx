@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -78,6 +79,21 @@ const Tournament = () => {
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null);
   const [paymentTournament, setPaymentTournament] = useState<Tournament | null>(null);
+  
+  const { tournamentId, matchId } = useParams();
+  const [searchParams] = useSearchParams();
+  const isSpectateMode = searchParams.get('spectate') === tournamentId || (tournamentId && matchId);
+
+  useEffect(() => {
+    if (isSpectateMode && tournamentId && matchId) {
+      // Find and load the tournament for spectate mode
+      const tournament = tournaments.find(t => t.id === tournamentId);
+      if (tournament) {
+        setSelectedTournament(tournament);
+        setCurrentView('dashboard');
+      }
+    }
+  }, [isSpectateMode, tournamentId, matchId, tournaments]);
 
   const handleCreateTournament = (tournament: Tournament) => {
     setTournaments(prev => [...prev, tournament]);

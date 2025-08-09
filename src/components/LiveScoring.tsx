@@ -66,9 +66,10 @@ interface WicketDetails {
 interface LiveScoringProps {
   matchConfig: MatchConfig;
   onEndMatch: () => void;
+  isSpectateMode?: boolean;
 }
 
-const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
+const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveScoringProps) => {
   const [matchState, setMatchState] = useState<MatchState>({
     format: matchConfig.format,
     innings: [],
@@ -91,7 +92,7 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   const [previousBowler, setPreviousBowler] = useState('');
   const [matchComplete, setMatchComplete] = useState(false);
   const [wicketDetails, setWicketDetails] = useState<WicketDetails | null>(null);
-  const [spectatorMode, setSpectatorMode] = useState(false);
+  const [spectatorMode, setSpectatorMode] = useState(isSpectateMode);
   const [shareableLink, setShareableLink] = useState('');
   
   // Score state
@@ -140,7 +141,8 @@ const LiveScoring = ({ matchConfig, onEndMatch }: LiveScoringProps) => {
   // Generate shareable link for spectators
   const generateShareableLink = () => {
     const baseUrl = window.location.origin;
-    const spectateUrl = `${baseUrl}/?spectate=true&match=${Date.now()}`;
+    const matchId = `match-${Date.now()}`;
+    const spectateUrl = `${baseUrl}/spectate/${matchId}`;
     setShareableLink(spectateUrl);
     
     // Copy to clipboard

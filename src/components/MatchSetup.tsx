@@ -77,6 +77,15 @@ const MatchSetup = ({ onStartMatch, onBack }: MatchSetupProps) => {
   };
 
   const addPlayer = (team: 'team1' | 'team2') => {
+    const otherTeam = team === 'team1' ? 'team2' : 'team1';
+    const otherTeamPlayers = team === 'team1' ? config.team2Players : config.team1Players;
+    const currentTeamPlayers = team === 'team1' ? config.team1Players : config.team2Players;
+    
+    // Don't allow more players than the other team has
+    if (currentTeamPlayers.length >= otherTeamPlayers.length && otherTeamPlayers.some(p => p.trim())) {
+      return;
+    }
+    
     if (team === 'team1') {
       setConfig(prev => ({
         ...prev,
@@ -107,22 +116,29 @@ const MatchSetup = ({ onStartMatch, onBack }: MatchSetupProps) => {
   const updateWickets = () => {
     const team1ValidPlayers = config.team1Players.filter(p => p.trim()).length;
     const team2ValidPlayers = config.team2Players.filter(p => p.trim()).length;
-    const maxPlayers = Math.max(team1ValidPlayers, team2ValidPlayers);
     
-    if (maxPlayers > 0) {
+    // Ensure both teams have equal players
+    if (team1ValidPlayers > 0 && team2ValidPlayers > 0) {
+      const minPlayers = Math.min(team1ValidPlayers, team2ValidPlayers);
       // Last man stands: wickets = players, Default: wickets = players - 1
-      const newWickets = config.lastManStands ? maxPlayers : maxPlayers - 1;
+      const newWickets = config.lastManStands ? minPlayers : minPlayers - 1;
       setConfig(prev => ({ ...prev, wickets: newWickets }));
     }
   };
 
   const isFormValid = () => {
+    const team1ValidPlayers = config.team1Players.filter(p => p.trim());
+    const team2ValidPlayers = config.team2Players.filter(p => p.trim());
+    
     return config.team1Name && 
            config.team2Name && 
-           config.team1Players.filter(p => p.trim()).length >= 2 &&
-           config.team2Players.filter(p => p.trim()).length >= 2 &&
+           team1ValidPlayers.length >= 2 &&
+           team2ValidPlayers.length >= 2 &&
+           team1ValidPlayers.length === team2ValidPlayers.length && // Equal teams
            config.team1Captain &&
            config.team2Captain &&
+           team1ValidPlayers.includes(config.team1Captain) && // Captain from team
+           team2ValidPlayers.includes(config.team2Captain) && // Captain from team
            config.tossWinner &&
            config.firstBatting;
   };
@@ -328,12 +344,18 @@ const MatchSetup = ({ onStartMatch, onBack }: MatchSetupProps) => {
 
               <div>
                 <Label htmlFor="team1captain">Captain</Label>
-                <Input
-                  id="team1captain"
-                  placeholder="Captain name"
-                  value={config.team1Captain}
-                  onChange={(e) => setConfig(prev => ({ ...prev, team1Captain: e.target.value }))}
-                />
+                <Select value={config.team1Captain} onValueChange={(value) => setConfig(prev => ({ ...prev, team1Captain: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select captain from team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {config.team1Players.filter(p => p.trim()).map((player, index) => (
+                      <SelectItem key={index} value={player}>
+                        {player}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
@@ -380,12 +402,18 @@ const MatchSetup = ({ onStartMatch, onBack }: MatchSetupProps) => {
 
               <div>
                 <Label htmlFor="team2captain">Captain</Label>
-                <Input
-                  id="team2captain"
-                  placeholder="Captain name"
-                  value={config.team2Captain}
-                  onChange={(e) => setConfig(prev => ({ ...prev, team2Captain: e.target.value }))}
-                />
+                <Select value={config.team2Captain} onValueChange={(value) => setConfig(prev => ({ ...prev, team2Captain: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select captain from team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {config.team2Players.filter(p => p.trim()).map((player, index) => (
+                      <SelectItem key={index} value={player}>
+                        {player}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>

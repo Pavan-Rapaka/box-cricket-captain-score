@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy, Users, Calendar, BarChart3 } from 'lucide-react';
@@ -9,6 +9,9 @@ import LiveScoring from '@/components/LiveScoring';
 const Index = () => {
   const [currentView, setCurrentView] = useState<'home' | 'setup' | 'scoring'>('home');
   const [matchConfig, setMatchConfig] = useState<MatchConfig | null>(null);
+  const { matchId } = useParams();
+  const [searchParams] = useSearchParams();
+  const isSpectateMode = searchParams.get('spectate') === 'true' || !!matchId;
 
   const handleStartMatch = (config: MatchConfig) => {
     setMatchConfig(config);
@@ -20,12 +23,36 @@ const Index = () => {
     setMatchConfig(null);
   };
 
+  useEffect(() => {
+    if (isSpectateMode && matchId) {
+      // In spectate mode, show a message or load spectate view
+      setCurrentView('home'); // For now, redirect to home with spectate info
+    }
+  }, [isSpectateMode, matchId]);
+
   if (currentView === 'setup') {
     return <MatchSetup onStartMatch={handleStartMatch} onBack={() => setCurrentView('home')} />;
   }
 
   if (currentView === 'scoring' && matchConfig) {
-    return <LiveScoring matchConfig={matchConfig} onEndMatch={handleEndMatch} />;
+    return <LiveScoring matchConfig={matchConfig} onEndMatch={handleEndMatch} isSpectateMode={isSpectateMode} />;
+  }
+
+  if (isSpectateMode && matchId) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-2xl mx-auto text-center space-y-6">
+          <Trophy className="w-16 h-16 text-cricket-gold mx-auto" />
+          <h1 className="text-2xl font-bold">Match Spectate Mode</h1>
+          <p className="text-muted-foreground">
+            This match is being shared with you. Wait for the match to start or contact the organizer.
+          </p>
+          <Button onClick={() => window.location.href = '/'}>
+            Go to Home
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   // Home page with navigation
