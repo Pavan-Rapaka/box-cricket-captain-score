@@ -12,6 +12,7 @@ import TournamentPayment from '@/components/tournament/TournamentPayment';
 import PlayerStats from '@/components/tournament/PlayerStats';
 import MatchSchedule from '@/components/tournament/MatchSchedule';
 import PointsTable from '@/components/tournament/PointsTable';
+import TournamentLiveScoring from '@/components/tournament/TournamentLiveScoring';
 
 export interface Tournament {
   id: string;
