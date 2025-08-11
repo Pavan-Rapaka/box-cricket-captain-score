@@ -269,8 +269,7 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
                 type="number"
                 min="1"
                 value={entryFee}
-                disabled
-                readOnly
+                onChange={(e) => setEntryFee(Number(e.target.value))}
                 placeholder="Entry fee for the tournament"
               />
               <p className="text-xs text-muted-foreground mt-1">

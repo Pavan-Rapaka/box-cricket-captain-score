@@ -988,38 +988,78 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
           </DialogContent>
         </Dialog>
 
-        {/* Batsman Selection Dialog */}
-        <Dialog open={showBatsmanSelect} onOpenChange={() => {}}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Select Opening Batsmen</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Striker (on strike):</label>
-                <Select onValueChange={(value) => setStriker(prev => ({ ...prev, name: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose striker" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(battingTeam === match.team1 ? team1Players : team2Players).map((player) => (
-                      <SelectItem key={player} value={player}>
-                        {player}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        {/* Batsman Selection Dialog - Hidden in spectator mode */}
+        {!spectatorMode && (
+          <Dialog open={showBatsmanSelect} onOpenChange={() => {}}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Select Opening Batsmen</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Striker (on strike):</label>
+                  <Select onValueChange={(value) => setStriker(prev => ({ ...prev, name: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose striker" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(battingTeam === match.team1 ? team1Players : team2Players).map((player) => (
+                        <SelectItem key={player} value={player}>
+                          {player}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Non-striker:</label>
+                  <Select onValueChange={(value) => setNonStriker(prev => ({ ...prev, name: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose non-striker" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(battingTeam === match.team1 ? team1Players : team2Players)
+                        .filter(player => player !== striker.name)
+                        .map((player) => (
+                          <SelectItem key={player} value={player}>
+                            {player}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button 
+                  onClick={() => {
+                    setShowBatsmanSelect(false);
+                    setShowBowlerSelect(true);
+                  }} 
+                  className="w-full"
+                  disabled={!striker.name || !nonStriker.name || striker.name === nonStriker.name}
+                >
+                  Continue
+                </Button>
               </div>
-              
-              <div>
-                <label className="text-sm font-medium">Non-striker:</label>
-                <Select onValueChange={(value) => setNonStriker(prev => ({ ...prev, name: value }))}>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* New Batsman Selection Dialog - Hidden in spectator mode */}
+        {!spectatorMode && (
+          <Dialog open={showNewBatsmanSelect} onOpenChange={() => {}}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Select New Batsman</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Select onValueChange={(value) => selectNewBatsman(value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose non-striker" />
+                    <SelectValue placeholder="Choose new batsman" />
                   </SelectTrigger>
                   <SelectContent>
                     {(battingTeam === match.team1 ? team1Players : team2Players)
-                      .filter(player => player !== striker.name)
+                      .slice(nextPlayerIndex)
                       .map((player) => (
                         <SelectItem key={player} value={player}>
                           {player}
@@ -1028,86 +1068,52 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
                   </SelectContent>
                 </Select>
               </div>
-              
-              <Button 
-                onClick={() => {
-                  setShowBatsmanSelect(false);
-                  setShowBowlerSelect(true);
-                }} 
-                className="w-full"
-                disabled={!striker.name || !nonStriker.name || striker.name === nonStriker.name}
-              >
-                Continue
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        )}
 
-        {/* New Batsman Selection Dialog */}
-        <Dialog open={showNewBatsmanSelect} onOpenChange={() => {}}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Select New Batsman</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Select onValueChange={(value) => selectNewBatsman(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose new batsman" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(battingTeam === match.team1 ? team1Players : team2Players)
-                    .slice(nextPlayerIndex)
-                    .map((player) => (
+        {/* Bowler Selection Dialog - Hidden in spectator mode */}
+        {!spectatorMode && (
+          <Dialog open={showBowlerSelect} onOpenChange={() => {}}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {balls === 0 ? 'Select Bowler to Start' : 'Select Bowler for Next Over'}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Select onValueChange={(value) => {
+                  setCurrentBowler(value);
+                  initializeBowlerStats(value);
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose bowler" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableBowlers().map((player) => (
                       <SelectItem key={player} value={player}>
                         {player}
+                        {player === previousBowler && ' (Previous bowler)'}
                       </SelectItem>
                     ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Bowler Selection Dialog */}
-        <Dialog open={showBowlerSelect} onOpenChange={() => {}}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {balls === 0 ? 'Select Bowler to Start' : 'Select Bowler for Next Over'}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Select onValueChange={(value) => {
-                setCurrentBowler(value);
-                initializeBowlerStats(value);
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose bowler" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAvailableBowlers().map((player) => (
-                    <SelectItem key={player} value={player}>
-                      {player}
-                      {player === previousBowler && ' (Previous bowler)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {previousBowler && (
-                <p className="text-sm text-muted-foreground">
-                  Note: {previousBowler} cannot bowl consecutive overs
-                </p>
-              )}
-              <Button 
-                onClick={() => setShowBowlerSelect(false)} 
-                className="w-full"
-                disabled={!currentBowler}
-              >
-                Continue
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+                  </SelectContent>
+                </Select>
+                {previousBowler && (
+                  <p className="text-sm text-muted-foreground">
+                    Note: {previousBowler} cannot bowl consecutive overs
+                  </p>
+                )}
+                <Button 
+                  onClick={() => setShowBowlerSelect(false)} 
+                  className="w-full"
+                  disabled={!currentBowler}
+                >
+                  Continue
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
         {/* Share Match Dialog */}
         <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
