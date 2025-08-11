@@ -175,6 +175,7 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
   };
 
   const updateScore = (runs: number, isBoundary = false, isExtra = false) => {
+    if (spectatorMode) return;
     // Prevent scoring if batsmen or bowler not selected
     if (!currentBowler || showBatsmanSelect) {
       if (showBatsmanSelect) return;
@@ -278,10 +279,12 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
   };
 
   const handleWicket = () => {
+    if (spectatorMode) return;
     setShowWicketDialog(true);
   };
 
   const processWicket = (dismissalType: string, fielder?: string) => {
+    if (spectatorMode) return;
     const newWickets = wickets + 1;
     setWickets(newWickets);
     
@@ -588,17 +591,13 @@ const LiveScoring = ({ matchConfig, onEndMatch, isSpectateMode = false }: LiveSc
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onEndMatch}>
+            <Button variant="outline" onClick={onEndMatch} disabled={spectatorMode}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               End Match
             </Button>
             <Button variant="outline" onClick={() => setShowScoreboard(true)}>
               <BarChart3 className="w-4 h-4 mr-2" />
               Scorecard
-            </Button>
-            <Button variant="outline" onClick={() => setSpectatorMode(!spectatorMode)}>
-              <Eye className="w-4 h-4 mr-2" />
-              {spectatorMode ? 'Exit Spectator' : 'Spectator Mode'}
             </Button>
             <Button variant="outline" onClick={generateShareableLink}>
               <Share2 className="w-4 h-4 mr-2" />

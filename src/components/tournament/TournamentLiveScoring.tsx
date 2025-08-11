@@ -68,9 +68,10 @@ interface TournamentLiveScoringProps {
   tournament: Tournament;
   onMatchComplete: (match: TournamentMatch, fantasyPoints: FantasyPoints[]) => void;
   onBack: () => void;
+  isSpectateMode?: boolean;
 }
 
-const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: TournamentLiveScoringProps) => {
+const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isSpectateMode = false }: TournamentLiveScoringProps) => {
   const [currentInnings, setCurrentInnings] = useState(1);
   const [battingTeam, setBattingTeam] = useState(match.team1);
   const [showWicketDialog, setShowWicketDialog] = useState(false);
@@ -85,7 +86,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   const [previousBowler, setPreviousBowler] = useState('');
   const [wicketDetails, setWicketDetails] = useState<WicketDetails | null>(null);
   const [declared, setDeclared] = useState(false);
-  const [spectatorMode, setSpectatorMode] = useState(false);
+  const [spectatorMode, setSpectatorMode] = useState(isSpectateMode);
   const [showShareDialog, setShowShareDialog] = useState(false);
   
   // Function to update players during the game
@@ -133,13 +134,22 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   // Generate shareable link for spectators
   const generateShareableLink = () => {
     const baseUrl = window.location.origin;
-    const spectateUrl = `${baseUrl}/tournament/spectate/${tournament.id}/${match.id}`;
-    
-    // Copy to clipboard
+    const payload = {
+      overs: tournament.overs,
+      lastManStands: tournament.lastManStands,
+      playersPerTeam: tournament.playersPerTeam,
+      wickets: tournament.wickets,
+      team1: match.team1,
+      team2: match.team2,
+      team1Players: tournament.players[match.team1] || [],
+      team2Players: tournament.players[match.team2] || [],
+      name: tournament.name
+    };
+    const cfg = btoa(encodeURIComponent(JSON.stringify(payload)));
+    const spectateUrl = `${baseUrl}/tournament/spectate/${tournament.id}/${match.id}?cfg=${cfg}`;
     navigator.clipboard.writeText(spectateUrl).then(() => {
       alert('Spectate link copied to clipboard!');
     }).catch(() => {
-      // Fallback for older browsers
       setShowShareDialog(true);
     });
   };
@@ -197,6 +207,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   };
 
   const updateScore = (runs: number, isBoundary = false, isExtra = false) => {
+    if (spectatorMode) return;
     if (!currentBowler || showBatsmanSelect) {
       if (showBatsmanSelect) return;
       setShowBowlerSelect(true);
@@ -289,6 +300,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   };
 
   const declareInnings = () => {
+    if (spectatorMode) return;
     setDeclared(true);
     if (currentInnings === 1) {
       setFirstInningsScore(score);
@@ -300,6 +312,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack }: T
   };
 
   const handleWicket = () => {
+    if (spectatorMode) return;
     setShowWicketDialog(true);
   };
 

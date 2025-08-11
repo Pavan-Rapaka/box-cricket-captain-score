@@ -82,18 +82,58 @@ const Tournament = () => {
   
   const { tournamentId, matchId } = useParams();
   const [searchParams] = useSearchParams();
-  const isSpectateMode = searchParams.get('spectate') === tournamentId || (tournamentId && matchId);
+  const isSpectateMode = !!(tournamentId && matchId);
 
   useEffect(() => {
     if (isSpectateMode && tournamentId && matchId) {
-      // Find and load the tournament for spectate mode
-      const tournament = tournaments.find(t => t.id === tournamentId);
-      if (tournament) {
-        setSelectedTournament(tournament);
-        setCurrentView('dashboard');
+      const cfg = searchParams.get('cfg');
+      if (cfg) {
+        try {
+          const json = JSON.parse(decodeURIComponent(atob(cfg)));
+          const payload = json as any;
+          const tempTournament: Tournament = {
+            id: tournamentId,
+            name: payload.name || 'Spectate Tournament',
+            format: 'round-robin',
+            teams: [payload.team1, payload.team2].filter(Boolean),
+            players: {
+              [payload.team1]: payload.team1Players || [],
+              [payload.team2]: payload.team2Players || [],
+            },
+            status: 'ongoing',
+            startDate: new Date(),
+            overs: payload.overs || 20,
+            playersPerTeam: payload.playersPerTeam || Math.min((payload.team1Players||[]).length, (payload.team2Players||[]).length) || 11,
+            wickets: payload.lastManStands ? (payload.playersPerTeam || 11) : ((payload.playersPerTeam || 11) - 1),
+            lastManStands: !!payload.lastManStands,
+            entryFee: 0,
+            requiresPayment: true,
+            matches: [{
+              id: matchId,
+              tournamentId,
+              team1: payload.team1,
+              team2: payload.team2,
+              matchNumber: 1,
+              scheduledDate: new Date(),
+              status: 'ongoing'
+            }],
+            pointsTable: []
+          };
+          setSelectedTournament(tempTournament);
+          setCurrentView('dashboard');
+        } catch (e) {
+          console.error('Invalid spectate payload');
+        }
+      } else {
+        // Try load from local state
+        const tournament = tournaments.find(t => t.id === tournamentId);
+        if (tournament) {
+          setSelectedTournament(tournament);
+          setCurrentView('dashboard');
+        }
       }
     }
-  }, [isSpectateMode, tournamentId, matchId, tournaments]);
+  }, [isSpectateMode, tournamentId, matchId, tournaments, searchParams]);
 
   const handleCreateTournament = (tournament: Tournament) => {
     setTournaments(prev => [...prev, tournament]);
@@ -166,6 +206,21 @@ const Tournament = () => {
         onCancel={() => setCurrentView('list')}
       />
     );
+  }
+
+  if (isSpectateMode && selectedTournament) {
+    const m = selectedTournament.matches.find(m => m.id === matchId) || selectedTournament.matches[0];
+    if (m) {
+      return (
+        <TournamentLiveScoring 
+          match={m}
+          tournament={selectedTournament}
+          onMatchComplete={() => {}}
+          onBack={() => window.location.href = '/tournament'}
+          isSpectateMode={true}
+        />
+      );
+    }
   }
 
   if (currentView === 'dashboard' && selectedTournament) {
