@@ -77,7 +77,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
   const [showWicketDialog, setShowWicketDialog] = useState(false);
   const [showInningsBreak, setShowInningsBreak] = useState(false);
   const [showBowlerSelect, setShowBowlerSelect] = useState(false);
-  const [showBatsmanSelect, setShowBatsmanSelect] = useState(true);
+  const [showBatsmanSelect, setShowBatsmanSelect] = useState(!isSpectateMode);
   const [showNewBatsmanSelect, setShowNewBatsmanSelect] = useState(false);
   const [showMatchResult, setShowMatchResult] = useState(false);
   const [showScoreboard, setShowScoreboard] = useState(false);
@@ -207,10 +207,10 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
   };
 
   const updateScore = (runs: number, isBoundary = false, isExtra = false) => {
-    if (spectatorMode) return;
+    if (spectatorMode || isSpectateMode) return;
     if (!currentBowler || showBatsmanSelect) {
       if (showBatsmanSelect) return;
-      setShowBowlerSelect(true);
+      if (!isSpectateMode) setShowBowlerSelect(true);
       return;
     }
     
@@ -278,7 +278,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
       
       setPreviousBowler(currentBowler);
       setCurrentBowler('');
-      setShowBowlerSelect(true);
+      if (!isSpectateMode) setShowBowlerSelect(true);
     }
 
     // Check if innings should end (based on tournament overs)
@@ -300,7 +300,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
   };
 
   const declareInnings = () => {
-    if (spectatorMode) return;
+    if (spectatorMode || isSpectateMode) return;
     setDeclared(true);
     if (currentInnings === 1) {
       setFirstInningsScore(score);
@@ -312,7 +312,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
   };
 
   const handleWicket = () => {
-    if (spectatorMode) return;
+    if (spectatorMode || isSpectateMode) return;
     setShowWicketDialog(true);
   };
 
@@ -391,7 +391,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
     setPreviousBowler('');
     setAllPlayers([]);
     setBowlerStats([]);
-    setShowBatsmanSelect(true);
+    setShowBatsmanSelect(!isSpectateMode);
     setDeclared(false);
     
     setStriker({
@@ -763,7 +763,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
         </div>
 
         {/* Scoring Buttons - Hidden in spectator mode */}
-        {!spectatorMode && (
+        {!spectatorMode && !isSpectateMode && (
           <Card>
             <CardHeader>
               <CardTitle>Quick Score</CardTitle>
@@ -896,7 +896,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
         )}
 
         {/* In-Game Player Management */}
-        {!spectatorMode && (
+        {!spectatorMode && !isSpectateMode && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -918,7 +918,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
         )}
 
         {/* Spectator Mode Info */}
-        {spectatorMode && (
+        {(spectatorMode || isSpectateMode) && (
           <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
             <CardContent className="p-6 text-center">
               <Eye className="w-12 h-12 text-blue-600 mx-auto mb-3" />
@@ -989,7 +989,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
         </Dialog>
 
         {/* Batsman Selection Dialog - Hidden in spectator mode */}
-        {!spectatorMode && (
+        {!spectatorMode && !isSpectateMode && (
           <Dialog open={showBatsmanSelect} onOpenChange={() => {}}>
             <DialogContent>
               <DialogHeader>
@@ -1033,8 +1033,8 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
                 <Button 
                   onClick={() => {
                     setShowBatsmanSelect(false);
-                    setShowBowlerSelect(true);
-                  }} 
+                    if (!isSpectateMode) setShowBowlerSelect(true);
+                  }}
                   className="w-full"
                   disabled={!striker.name || !nonStriker.name || striker.name === nonStriker.name}
                 >
@@ -1046,7 +1046,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
         )}
 
         {/* New Batsman Selection Dialog - Hidden in spectator mode */}
-        {!spectatorMode && (
+        {!spectatorMode && !isSpectateMode && (
           <Dialog open={showNewBatsmanSelect} onOpenChange={() => {}}>
             <DialogContent>
               <DialogHeader>
@@ -1073,7 +1073,7 @@ const TournamentLiveScoring = ({ match, tournament, onMatchComplete, onBack, isS
         )}
 
         {/* Bowler Selection Dialog - Hidden in spectator mode */}
-        {!spectatorMode && (
+        {!spectatorMode && !isSpectateMode && (
           <Dialog open={showBowlerSelect} onOpenChange={() => {}}>
             <DialogContent>
               <DialogHeader>

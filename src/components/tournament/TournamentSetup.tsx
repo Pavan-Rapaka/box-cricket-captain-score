@@ -264,17 +264,12 @@ const TournamentSetup = ({ tournament, onCreateTournament, onCancel, isEditing =
             
             <div>
               <Label htmlFor="entryFee">Entry Fee (₹)</Label>
-              <Input
-                id="entryFee"
-                type="number"
-                min="1"
-                value={entryFee}
-                onChange={(e) => setEntryFee(Number(e.target.value))}
-                placeholder="Entry fee for the tournament"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Payment required for all tournament participants
-              </p>
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="text-lg font-semibold">₹{entryFee}</div>
+                <p className="text-xs text-muted-foreground">
+                  Entry fee is set by the developer and cannot be modified
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
